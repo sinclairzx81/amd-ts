@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target"        : "es5",
+    "removeComments": true,
+    "declaration"   : true
+  },
+  "files": [
+    "./require.ts"
+  ]
+}

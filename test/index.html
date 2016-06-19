@@ -1,0 +1,73 @@
+<html>
+  <style type="text/css">
+    * {
+      font-family: Consolas;
+    }
+  </style>
+  <script type="text/javascript" src="./amd/amd.js"></script>
+  <script type="text/javascript">
+    
+    var log = function(message) {
+      console.log(message)
+      if(message !== undefined || message !== null) {
+        let pre = document.getElementById("log")
+        pre.innerHTML += (message + "\n")
+      }
+    }
+
+    var clearall = function() {
+      console.clear()
+      let pre = document.getElementById("log")
+      pre.innerHTML = ""
+    }
+
+    var require_bundled = function() {
+      log("------------------")
+      log("requiring bundled")
+      log("------------------")
+      amd.require("bin/bundled/app", function(bundled) {
+        log("------------------")
+        log("testing bundled")
+        log("------------------")
+        bundled.test()
+      })
+    }
+
+    var require_normalized = function() {
+      log("------------------")
+      log("requiring normalized")
+      log("------------------")
+      amd.require("bin/normalized/app", function(normalized) {
+        log("------------------")
+        log("testing normalized")
+        log("------------------")
+        normalized.test()
+      })
+    }
+    
+    var require_multiple = function() {
+      log("------------------")
+      log("requiring multiple")
+      log("------------------")
+      amd.require(["bin/normalized/app", "bin/bundled/app"], function(normalized, bundled) {
+        log("------------------")
+        log("testing normalized")
+        log("------------------")
+        normalized.test ()
+        log("------------------")
+        log("testing bundled")
+        log("------------------")
+        bundled.test()
+      })
+    }
+    
+  </script>
+  <body>
+      <h3>output in console - expect identical output for normalized and bundled.</h3>
+      <input type="button" value="require normalized" onclick="require_normalized()" />
+      <input type="button" value="require bundled"    onclick="require_bundled()" />
+      <input type="button" value="require multiple"   onclick="require_multiple()" />
+      <input type="button" value="clear console"      onclick="clearall()" />
+      <pre id="log"></pre>
+  </body>
+</html>
