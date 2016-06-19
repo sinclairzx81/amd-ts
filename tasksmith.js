@@ -25,30 +25,32 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
-var __defs = {};
-var __mods = {
+var definitions = {};
+var cached = {
     "require": function (arg, callback) { return callback(require(arg)); },
     "exports": {}
 };
 var define = function (name, deps, fn) {
-    __defs[name] = { deps: deps, fn: fn };
+    definitions[name] = { deps: deps, fn: fn };
 };
 var __resolve = function (name) {
-    if (__mods[name] !== undefined) {
-        return __mods[name];
+    if (name === "exports")
+        return {};
+    if (cached[name] !== undefined) {
+        return cached[name];
     }
-    else if (__defs[name] !== undefined) {
-        var args = __defs[name].deps.map(function (name) { return __resolve(name); });
-        __defs[name].fn.apply({}, args);
-        return __mods[name] = args[__defs[name].deps.indexOf("exports")];
+    else if (definitions[name] !== undefined) {
+        var args = definitions[name].deps.map(function (name) { return __resolve(name); });
+        definitions[name].fn.apply({}, args);
+        return cached[name] = args[definitions[name].deps.indexOf("exports")];
     }
     else {
         return require(name);
     }
 };
 var __collect = function () {
-    Object.keys(__defs).map(function (name) { return __resolve(name); });
-    return __mods["exports"];
+    var ids = Object.keys(definitions);
+    return __resolve(ids[ids.length - 1]);
 };
 
 define("common/signature", ["require", "exports"], function (require, exports) {
@@ -935,13 +937,17 @@ define("node/shell", ["require", "exports", "common/signature", "core/script", "
     }
     exports.shell = shell;
 });
-define("tasksmith", ["require", "exports", "common/signature", "common/tabulate", "core/delay", "core/dowhile", "core/ifelse", "core/parallel", "core/repeat", "core/script", "core/series", "core/task", "core/timeout", "core/trycatch", "node/fs/append", "node/fs/concat", "node/fs/copy", "node/fs/drop", "node/watch", "node/cli", "node/shell"], function (require, exports, signature_19, tabulate_2, delay_1, dowhile_1, ifelse_1, parallel_1, repeat_1, script_19, series_1, task_2, timeout_1, trycatch_1, append_1, concat_1, copy_1, drop_1, watch_1, cli_1, shell_1) {
+define("tasksmith", ["require", "exports", "common/signature", "common/tabulate", "core/delay", "core/dowhile", "core/fail", "core/format", "core/ifelse", "core/ifthen", "core/ok", "core/parallel", "core/repeat", "core/script", "core/series", "core/task", "core/timeout", "core/trycatch", "node/fs/append", "node/fs/concat", "node/fs/copy", "node/fs/drop", "node/watch", "node/cli", "node/shell"], function (require, exports, signature_19, tabulate_2, delay_1, dowhile_1, fail_1, format_1, ifelse_1, ifthen_1, ok_1, parallel_1, repeat_1, script_19, series_1, task_2, timeout_1, trycatch_1, append_1, concat_1, copy_1, drop_1, watch_1, cli_1, shell_1) {
     "use strict";
     exports.signature = signature_19.signature;
     exports.tabulate = tabulate_2.tabulate;
     exports.delay = delay_1.delay;
     exports.dowhile = dowhile_1.dowhile;
+    exports.fail = fail_1.fail;
+    exports.format = format_1.format;
     exports.ifelse = ifelse_1.ifelse;
+    exports.ifthen = ifthen_1.ifthen;
+    exports.ok = ok_1.ok;
     exports.parallel = parallel_1.parallel;
     exports.repeat = repeat_1.repeat;
     exports.script = script_19.script;
