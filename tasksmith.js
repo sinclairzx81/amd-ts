@@ -25,32 +25,32 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
-var definitions = {};
-var cached = {
+var __definitions = {};
+var __cached = {
     "require": function (arg, callback) { return callback(require(arg)); },
     "exports": {}
-};
-var define = function (name, deps, fn) {
-    definitions[name] = { deps: deps, fn: fn };
 };
 var __resolve = function (name) {
     if (name === "exports")
         return {};
-    if (cached[name] !== undefined) {
-        return cached[name];
+    if (__cached[name] !== undefined) {
+        return __cached[name];
     }
-    else if (definitions[name] !== undefined) {
-        var args = definitions[name].deps.map(function (name) { return __resolve(name); });
-        definitions[name].fn.apply({}, args);
-        return cached[name] = args[definitions[name].deps.indexOf("exports")];
+    else if (__definitions[name] !== undefined) {
+        var args = __definitions[name].deps.map(function (name) { return __resolve(name); });
+        __definitions[name].fn.apply({}, args);
+        return __cached[name] = args[__definitions[name].deps.indexOf("exports")];
     }
     else {
         return require(name);
     }
 };
 var __collect = function () {
-    var ids = Object.keys(definitions);
+    var ids = Object.keys(__definitions);
     return __resolve(ids[ids.length - 1]);
+};
+var define = function (name, deps, fn) {
+    __definitions[name] = { deps: deps, fn: fn };
 };
 
 define("common/signature", ["require", "exports"], function (require, exports) {
@@ -862,8 +862,10 @@ define("node/watch", ["require", "exports", "common/signature", "core/script", "
             args[_i - 0] = arguments[_i];
         }
         var param = signature_17.signature(args, [
-            { pattern: ["string", "string", "function"], map: function (args) { return ({ message: args[0], path: args[1], taskfunc: args[2] }); } },
-            { pattern: ["string", "function"], map: function (args) { return ({ message: null, path: args[0], taskfunc: args[1] }); } }
+            { pattern: ["string", "string", "boolean", "function"], map: function (args) { return ({ message: args[0], path: args[1], immediate: args[2], taskfunc: args[3] }); } },
+            { pattern: ["string", "boolean", "function"], map: function (args) { return ({ message: null, path: args[0], immediate: args[1], taskfunc: args[2] }); } },
+            { pattern: ["string", "string", "function"], map: function (args) { return ({ message: args[0], path: args[1], immediate: true, taskfunc: args[2] }); } },
+            { pattern: ["string", "function"], map: function (args) { return ({ message: null, path: args[0], immediate: true, taskfunc: args[1] }); } }
         ]);
         return script_16.script("node/watch", function (context) {
             if (param.message !== null)
@@ -878,7 +880,9 @@ define("node/watch", ["require", "exports", "common/signature", "core/script", "
                         .catch(function (error) { return context.fail(error.message); });
                 }
             };
-            fs_1.watch(param.path, function (event, filename) { return runtask(); });
+            if (param.immediate === true)
+                runtask();
+            fs_1.watch(param.path, { recursive: true }, function (event, filename) { return runtask(); });
         });
     }
     exports.watch = watch;
