@@ -227,7 +227,6 @@ var amd;
             return eval("(function(__amd_identifier) { \n            var __amd_definitions = []\n            var define = function() {\n                if (arguments.length === 1) __amd_definitions.push({id: __amd_identifier,  dependencies: [],           factory: arguments[0]});\n                if (arguments.length === 2) __amd_definitions.push({id: __amd_identifier,  dependencies: arguments[0], factory: arguments[1]});\n                if (arguments.length === 3) __amd_definitions.push({id: arguments[0],      dependencies: arguments[1], factory: arguments[2]});\n            };\n            define.amd = true\n            " + code + "\n\n            return __amd_definitions\n        })")(id);
         };
         var inject = function (id, code) {
-            console.log("evaluate: inject");
             var head = document.getElementsByTagName("head")[0];
             var script = document.createElement("script");
             var source = document.createTextNode(code);
@@ -267,7 +266,6 @@ var amd;
                 resolve({ module_type: "bundled", definitions: discovered });
                 return;
             }
-            console.log(discovered[0]);
             definitions.push(discovered[0]);
             var searches = discovered[0]
                 .dependencies

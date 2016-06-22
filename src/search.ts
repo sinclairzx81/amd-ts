@@ -125,7 +125,6 @@ namespace amd {
       // modules to be search. here we push the 
       // discovered definition into the accumulator
       // and build start up another search.
-      console.log(discovered[0])
       definitions.push(discovered[0])
       let searches = discovered[0]
                       .dependencies

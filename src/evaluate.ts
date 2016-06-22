@@ -73,7 +73,6 @@ namespace amd {
     // but happens to be useful enough to warrent.
     // The code is injected into the global scope.
     const inject:Evaluator = (id: string, code: string): Definition[] => {
-      console.log("evaluate: inject")
       var head    = document.getElementsByTagName("head")[0]
       var script  = document.createElement("script")
       var source  = document.createTextNode(code)
