@@ -1,3 +1,30 @@
+/*--------------------------------------------------------------------------
+
+amd-ts - An implementation of the amd specification in typescript.
+
+The MIT License (MIT)
+
+Copyright (c) 2016 Haydn Paterson (sinclair) <haydn.developer@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+---------------------------------------------------------------------------*/
 var amd;
 (function (amd) {
     var reflect = function (obj) {
@@ -157,21 +184,12 @@ var amd;
 })(amd || (amd = {}));
 var amd;
 (function (amd) {
-    amd.error = function (phase, message, inner) {
-        var error = new Error(message);
-        error.phase = phase;
-        error.inner = inner;
-        return error;
-    };
-})(amd || (amd = {}));
-var amd;
-(function (amd) {
     var http;
     (function (http) {
         function get(url) {
             return new amd.Future(function (resolve, reject) {
                 var xhr = new XMLHttpRequest();
-                xhr.addEventListener("readystatechange", function (event) {
+                xhr.addEventListener("readystatechange", function (e) {
                     switch (xhr.readyState) {
                         case 4:
                             switch (xhr.status) {
@@ -179,7 +197,7 @@ var amd;
                                     resolve(xhr.responseText);
                                     break;
                                 default:
-                                    reject(amd.error("http", "unable to get content at " + url, null));
+                                    reject(Error("status: " + xhr.status.toString() + ": " + url));
                                     break;
                             }
                             break;
@@ -222,85 +240,80 @@ var amd;
 })(amd || (amd = {}));
 var amd;
 (function (amd) {
-    amd.evaluate = function (id, code) {
-        var inspect = function (id, code) {
-            return eval("(function(__amd_identifier) { \n            var __amd_definitions = []\n            var define = function() {\n                if (arguments.length === 1) __amd_definitions.push({id: __amd_identifier,  dependencies: [],           factory: arguments[0]});\n                if (arguments.length === 2) __amd_definitions.push({id: __amd_identifier,  dependencies: arguments[0], factory: arguments[1]});\n                if (arguments.length === 3) __amd_definitions.push({id: arguments[0],      dependencies: arguments[1], factory: arguments[2]});\n            };\n            define.amd = true\n            " + code + "\n\n            return __amd_definitions\n        })")(id);
-        };
-        var inject = function (id, code) {
-            console.log("evaluate: inject");
-            var head = document.getElementsByTagName("head")[0];
-            var script = document.createElement("script");
-            var source = document.createTextNode(code);
-            script.type = "text/javascript";
-            script.appendChild(source);
-            head.appendChild(script);
-            return [];
-        };
-        var match = code.match(new RegExp("define(\\s)*\\("));
-        var evaluator = (match && match.length > 0) ? inspect : inject;
-        try {
-            return evaluator(id, code);
-        }
-        catch (error) {
-            throw amd.error("evaluate", "unable to evaluate module '" + id + "'. " + error, error);
-        }
-    };
+    amd.evaluate = function (id, code) { return new amd.Future(function (resolve, reject) {
+        var definitions = [];
+        var closure = eval("(function(define, __error_responder__) { try {" + code + " \n} } catch(error) { __error_responder__(error) } } )");
+        closure(function () {
+            var args = [];
+            for (var _i = 0; _i < arguments.length; _i++) {
+                args[_i - 0] = arguments[_i];
+            }
+            if (args.length == 1)
+                definitions.push({ id: id, dependencies: [], factory: args[0] });
+            else if (args.length == 2)
+                definitions.push({ id: id, dependencies: args[0], factory: args[1] });
+            else if (args.length == 3)
+                definitions.push({ id: args[0], dependencies: args[1], factory: args[2] });
+            else {
+                console.log("not a amd module.");
+            }
+        }, function (error) {
+            reject(error);
+        });
+        resolve(definitions);
+    }); };
 })(amd || (amd = {}));
 var amd;
 (function (amd) {
     amd.search = function (parameter, definitions) { return new amd.Future(function (resolve, reject) {
+        definitions = definitions || [];
         if (parameter.id === "exports" || parameter.id === "require") {
-            resolve({ module_type: "normalized", definitions: definitions });
+            resolve({ bundled: false, definitions: definitions });
             return;
         }
         if (definitions.some(function (definition) { return definition.id === parameter.id; })) {
-            resolve({ module_type: "normalized", definitions: definitions });
+            resolve({ bundled: false, definitions: definitions });
             return;
         }
         amd.http.get(parameter.path + ".js").then(function (content) {
-            var discovered = amd.evaluate(parameter.id, content);
-            if (discovered.length == 0) {
-                resolve({ module_type: "script", definitions: definitions });
-                return;
-            }
-            if (discovered.length > 1) {
-                resolve({ module_type: "bundled", definitions: discovered });
-                return;
-            }
-            console.log(discovered[0]);
-            definitions.push(discovered[0]);
-            var searches = discovered[0]
-                .dependencies
-                .map(function (id) { return amd.search({
-                id: id,
-                path: amd.path.resolve(parameter.path, id)
-            }, definitions); });
-            amd.Future.parallel(searches)
-                .then(function () { return resolve({ module_type: "normalized", definitions: definitions }); })
-                .catch(reject)
-                .run();
+            amd.evaluate(parameter.id, content).then(function (accumulator) {
+                if (accumulator.length == 0) {
+                    resolve({ bundled: false, definitions: definitions });
+                    return;
+                }
+                if (accumulator.length > 1) {
+                    resolve({ bundled: true, definitions: accumulator });
+                    return;
+                }
+                definitions.push(accumulator[0]);
+                var searches = accumulator[0].dependencies
+                    .map(function (id) { return amd.search({
+                    id: id,
+                    path: amd.path.resolve(parameter.path, id)
+                }, definitions); });
+                amd.Future.series(searches)
+                    .then(function () { return resolve({ bundled: false, definitions: definitions }); })
+                    .catch(reject)
+                    .run();
+            }).catch(reject);
         }).catch(reject).run();
     }); };
 })(amd || (amd = {}));
 var amd;
 (function (amd) {
-    amd.execute = function (id, space, cached) {
+    amd.resolve = function (id, space, cached) {
+        cached = cached || {};
         if (id === "exports")
             return {};
         if (cached[id] !== undefined)
             return cached[id];
         var definitions = space.filter(function (definition) { return definition.id === id; });
         if (definitions.length === 0)
-            throw amd.error("execute", "unable to find module " + id, null);
+            throw Error("amd: unable to find module " + id);
         if (definitions.length > 1)
-            throw amd.error("execute", "found multiple defintions with the same id for " + id, null);
-        var args = definitions[0].dependencies.map(function (id) { return amd.execute(id, space, cached); });
-        try {
-            definitions[0].factory.apply({}, args);
-        }
-        catch (error) {
-            throw amd.error("execute", "unable to execute module " + id, error);
-        }
+            throw Error("amd: found multiple defintions with the same id for " + id);
+        var args = definitions[0].dependencies.map(function (id) { return amd.resolve(id, space, cached); });
+        definitions[0].factory.apply({}, args);
         return cached[id] = args[definitions[0].dependencies.indexOf("exports")];
     };
 })(amd || (amd = {}));
@@ -316,29 +329,24 @@ var amd;
             { pattern: ["array", "function"], map: function (args) { return ({ ids: args[0], factory: args[1] }); } }
         ]);
         amd.ready(function () {
-            var searches = param.ids.map(function (id) { return amd.search({ id: amd.path.basename(id), path: id }, []); });
+            var searches = param.ids.map(function (id) { return amd.search({ id: amd.path.basename(id), path: id }); });
             amd.Future.parallel(searches).then(function (responses) {
-                var dependencies = responses.map(function (response, index) {
+                var args = responses.map(function (response, index) {
                     response.definitions.unshift({
                         id: "require",
                         dependencies: ["exports"],
                         factory: function (exports) { exports.require = amd.require; }
                     });
-                    switch (response.module_type) {
-                        case "normalized": {
-                            var id = amd.path.basename(param.ids[index]);
-                            return amd.execute(id, response.definitions, {});
-                        }
-                        case "bundled": {
-                            var id = response.definitions[response.definitions.length - 1].id;
-                            return amd.execute(id, response.definitions, {});
-                        }
-                        case "script": {
-                            return null;
-                        }
+                    if (response.bundled) {
+                        var id = response.definitions[response.definitions.length - 1].id;
+                        return amd.resolve(id, response.definitions, {});
+                    }
+                    else {
+                        var id = amd.path.basename(param.ids[index]);
+                        return amd.resolve(id, response.definitions, {});
                     }
                 });
-                param.factory.apply({}, dependencies);
+                param.factory.apply({}, args);
             }).catch(function (error) { return console.log(error); }).run();
         });
     }

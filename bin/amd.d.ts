@@ -1,3 +1,30 @@
+/*--------------------------------------------------------------------------
+
+amd-ts - An implementation of the amd specification in typescript.
+
+The MIT License (MIT)
+
+Copyright (c) 2016 Haydn Paterson (sinclair) <haydn.developer@gmail.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+---------------------------------------------------------------------------*/
 declare namespace amd {
     type SignatureTypeName = "function" | "string" | "number" | "array" | "object" | "date" | "boolean";
     interface SignatureMapping<T> {
@@ -14,7 +41,7 @@ declare module amd {
         (value: T): void;
     }
     interface FutureRejectFunc {
-        (error: any): void;
+        (error: Error): void;
     }
     interface FutureResolverFunc<T> {
         (resolve: FutureResolveFunc<T>, reject: FutureRejectFunc): void;
@@ -26,24 +53,13 @@ declare module amd {
         error: any;
         constructor(resolver: FutureResolverFunc<T>);
         then<U>(func: (value: T) => U): Future<U>;
-        catch<U>(func: (error: any) => U): Future<U>;
+        catch<U>(func: (error: Error) => U): Future<U>;
         run(): void;
         static resolve<T>(value: T): Future<T>;
-        static reject<T>(error: any): Future<T>;
+        static reject<T>(error: Error): Future<T>;
         static series<T>(futures: Future<T>[]): Future<T[]>;
         static parallel<T>(futures: Future<T>[]): Future<T[]>;
     }
-}
-declare namespace amd {
-    type Phase = "require" | "search" | "http" | "evaluate" | "execute" | "script" | "unknown";
-}
-declare namespace amd {
-    interface IError {
-        phase: amd.Phase;
-        message: string;
-        inner: Error;
-    }
-    const error: (phase: "require" | "search" | "http" | "evaluate" | "execute" | "script" | "unknown", message: string, inner: Error) => IError;
 }
 declare namespace amd.http {
     function get(url: string): amd.Future<string>;
@@ -60,10 +76,7 @@ declare namespace amd {
     }
 }
 declare namespace amd {
-    interface Evaluator {
-        (id: string, code: string): Definition[];
-    }
-    const evaluate: Evaluator;
+    const evaluate: (id: string, code: string) => Future<Definition[]>;
 }
 declare namespace amd {
     interface SearchRequest {
@@ -71,13 +84,13 @@ declare namespace amd {
         path: string;
     }
     interface SearchResponse {
-        module_type: "normalized" | "bundled" | "script";
+        bundled: boolean;
         definitions: Definition[];
     }
-    const search: (parameter: SearchRequest, definitions: Definition[]) => Future<SearchResponse>;
+    const search: (parameter: SearchRequest, definitions?: Definition[]) => Future<SearchResponse>;
 }
 declare namespace amd {
-    const execute: (id: string, space: Definition[], cached?: any) => any;
+    const resolve: (id: string, space: Definition[], cached?: any) => any;
 }
 declare namespace amd {
     function require(name: string, func: (arg: any) => void): void;

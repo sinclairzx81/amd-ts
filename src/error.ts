@@ -26,22 +26,27 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
+/// <reference path="phase.ts" />
+
 namespace amd {
 
-  /** 
-   * Definition:
-   * 
-   * Common definition obtained during a search or manually.
-  */
-  export interface Definition {
+  /** interface for amd errors */
+  export interface IError {
+    phase   : amd.Phase
+    message : string
+    inner   : Error
+  }
 
-    /** the id of this definition */
-    id            : string,
-
-    /** and array of dependencies for this definition. */
-    dependencies  : string[]
-    
-    /** this definitions factory function. */
-    factory       : (...args: any[]) => void
-  }  
+  /**
+   * creates a new amd error.
+   * @param {Phase|string} the phase in which this error occured.
+   * @param {string} a message associated with this error.
+   * @param {Error} the inner error.
+   */
+  export const error = (phase: amd.Phase, message: string, inner: Error) : IError => {
+    let error: any = new Error(message)
+    error.phase = phase
+    error.inner = inner
+    return error as IError
+  }
 }

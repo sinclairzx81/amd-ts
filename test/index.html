@@ -60,13 +60,35 @@
         bundled.test()
       })
     }
-    
+
+    var require_inject = function() {
+      log("------------------")
+      log("requiring inject")
+      log("------------------")
+      amd.require("bin/inject", function() {
+        INJECTED.test()
+      })
+    }
+
+    var require_error = function() {
+      log("------------------")
+      log("requiring errors")
+      log("------------------")
+      amd.require("bin/normalized/errors/index", function(errors) {
+        log("------------------")
+        log("testing errors")
+        log("------------------")
+        normalized.test ()
+      })
+    }
   </script>
   <body>
       <h3>output in console - expect identical output for normalized and bundled.</h3>
       <input type="button" value="require normalized" onclick="require_normalized()" />
       <input type="button" value="require bundled"    onclick="require_bundled()" />
       <input type="button" value="require multiple"   onclick="require_multiple()" />
+      <input type="button" value="require inject"     onclick="require_inject()" />
+      <input type="button" value="require error"      onclick="require_error()" />
       <input type="button" value="clear console"      onclick="clearall()" />
       <pre id="log"></pre>
   </body>

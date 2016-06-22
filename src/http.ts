@@ -27,25 +27,24 @@ THE SOFTWARE.
 ---------------------------------------------------------------------------*/
 
 /// <reference path="future.ts" />
+/// <reference path="error.ts" />
 
 namespace amd.http {
 
   /**
-   * gets the string content at this url.
-   * @param {string} the url to get.
+   * http gets the content at the given url.
+   * @param {string} the url endpoint.
    * @returns {Future<string>}
    */
   export function get(url: string) : amd.Future<string> {
     return new amd.Future<string>((resolve, reject) => {
       let xhr = new XMLHttpRequest()
-      xhr.addEventListener("readystatechange", e => {
+      xhr.addEventListener("readystatechange", event => {
         switch(xhr.readyState) {
           case 4:
             switch(xhr.status) {
-              case 200: 
-                resolve(xhr.responseText); 
-              break;
-              default:  reject(Error("status: " + xhr.status.toString() + ": " + url)); break;
+              case 200: resolve (xhr.responseText); break;
+              default:  reject  (amd.error("http", "unable to get content at " + url, null)); break;
             } break;
         }
       })

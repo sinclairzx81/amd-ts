@@ -38,7 +38,7 @@ module amd {
 	 * interface for the reject function.
 	 */
 	export interface FutureRejectFunc {
-		(error: Error): void
+		(error: any): void
 	}
 
 	/**
@@ -93,7 +93,7 @@ module amd {
 		 * @param {Function} callback triggered on fail.
 		 * @returns {Future<T>}
 		 */
-		public catch<U>(func: (error: Error) => U) : Future<U> {
+		public catch<U>(func: (error: any) => U) : Future<U> {
 			return new Future<U>((resolve, reject) => {
 				this.state = "resolving"
 				this.resolver(value => {
@@ -140,7 +140,7 @@ module amd {
 		 * @param {Error} the error to reject with.
 		 * @returns{Future<T>}
 		 */
-		public static reject<T>(error: Error): Future<T> {
+		public static reject<T>(error: any): Future<T> {
 			return new Future<T>((_, reject) => reject(error))
 		}
 

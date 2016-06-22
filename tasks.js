@@ -27,7 +27,7 @@ const clean = () => tasks.series([
 //--------------------------------------------------
 const build = () => tasks.series([
   tasks.shell("tsc -p ./src/tsconfig.json --outFile ./bin/amd.js"),
-  tasks.concat("./bin/amd.js",    ["./license", "./bin/amd.js"]),
+  tasks.concat("./bin/amd.js",   ["./license", "./bin/amd.js"]),
   tasks.concat("./bin/amd.d.ts", ["./license",  "./bin/amd.d.ts"])
 ])
 
@@ -35,7 +35,7 @@ const build = () => tasks.series([
 // sets up the browser tests on port 5000
 //--------------------------------------------------
 const test = () => tasks.parallel([
-  tasks.shell("tsc -w -p ./src/tsconfig.json --outFile ./test/amd/amd.js"),
+  tasks.shell("tsc -w -p ./src/tsconfig.json --outFile  ./test/amd/amd.js"),
   tasks.shell("tsc -w -p ./test/tsconfig.json --outFile ./test/bin/bundled/app.js"),
   tasks.shell("tsc -w -p ./test/tsconfig.json --outDir  ./test/bin/normalized"),
   tasks.shell("starting test on port 5000", "cd test && serve -p 5000")

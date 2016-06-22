@@ -29,7 +29,7 @@ THE SOFTWARE.
 /// <reference path="signature.ts" />
 /// <reference path="ready.ts" />
 /// <reference path="search.ts" />
-/// <reference path="resolve.ts" />
+/// <reference path="execute.ts" />
 
 namespace amd {
 
@@ -55,7 +55,6 @@ namespace amd {
    * @returns {void}
    */
   export function require(...args: any[]) : void {
-    // format arguments.
     let param = amd.signature<{
       ids     : string[],
       factory : (...args: any[]) => void
@@ -64,40 +63,90 @@ namespace amd {
       {  pattern: ["array",  "function"], map: (args) => ({ ids :  args[0],  factory: args[1] }) }
     ])
 
-    // wait for window
+    // wait: 
+    //
+    // don't do anything until we have a 
+    // signal from window.onload that the
+    // document is ready.
     amd.ready(() => {
 
-      // construct module searches from param.ids...
-      let searches = param.ids.map(id => search({id: amd.path.basename(id), path: id}))
+      // search:
+      //
+      // the caller is will be requesting
+      // multiple modules. here we map each
+      // into a future which we execute in
+      // parallel. each search will give us
+      // a definition space we use for to 
+      // resolve the module.
+      let searches = param.ids.map(id => search({id: amd.path.basename(id), path: id}, []))
 
-      // execute searches in parallel...
       amd.Future.parallel(searches).then(responses => {
 
-        // map the response definitions to caller arguments.
-        let args = responses.map((response, index) => {
+        // dependencies:
+        //
+        // the future parallel response returns an
+        // array of results, in this scenario, they
+        // are search results, with each result being
+        // a definition space for the module being
+        // requested. We use the definition space
+        // to execute the module being requested,
+        // these are mapped to dependecies here.
+        let dependencies = responses.map((response, index) => {
           
-          // unshift require into the definition space.
+          // require:
+          //
+          // before executing the module, we need create
+          // a definition for require that the execute,
+          // function will resolve for each. We push it
+          // first and not last due to a convention on
+          // bundled modules resolving from the last
+          // module in the bundle.
           response.definitions.unshift({
             id           : "require", 
             dependencies : ["exports"], 
             factory      : (exports) => { exports.require = amd.require } 
           })
 
-          // if bundled, the 'last' definition id is the rootid.
-          if(response.bundled) {
-            let id = response.definitions[response.definitions.length - 1].id
-            return amd.resolve(id, response.definitions, {})
-          }
-          // otherwise, the root is the id given by the caller.
-          else {
-            let id = amd.path.basename(param.ids[index])
-            return amd.resolve(id, response.definitions, {})
+          switch(response.module_type) {
+            // normalized:
+            //
+            // if not bundled, we resolve from the id given
+            // by the caller. We inspect the param id and the
+            // index we are using to map this dependency.
+            case "normalized": {
+              let id = amd.path.basename(param.ids[index])
+              return amd.execute(id, response.definitions, {})
+            }
+            
+            // bundled:
+            //
+            // the search is able to detect if it found
+            // multiple definitions for a single module.
+            // this is a indication the module it found was 
+            // bundled. In typescript, the last module in 
+            // the bundle is assumed to be the root id, 
+            // as such, we resolve it and not the id
+            // given by the caller.
+            case "bundled": {
+              let id = response.definitions[response.definitions.length - 1].id
+              return amd.execute(id, response.definitions, {})
+            }
+            
+            // script:
+            //
+            // if the caller is attempting to require
+            // vanilla javascript. This script will have
+            // been injected by the evaluator, need to
+            // move that code here.
+            case "script": {
+              return null
+            }
           }
         })
 
-        // return to caller with the mapped arguments.
-        param.factory.apply({}, args)
-
+        // return to caller:
+        param.factory.apply({}, dependencies)
+        
       }).catch(error => console.log(error)).run()
     })
   }
