@@ -34,7 +34,7 @@ const build = () => tasks.series([
 //--------------------------------------------------
 // sets up the browser tests on port 5000
 //--------------------------------------------------
-const test = () => tasks.parallel([
+const watch = () => tasks.parallel([
   tasks.shell("tsc -w -p ./src/tsconfig.json --outFile  ./test/amd/amd.js"),
   tasks.shell("tsc -w -p ./test/tsconfig.json --outFile ./test/bin/bundled/app.js"),
   tasks.shell("tsc -w -p ./test/tsconfig.json --outDir  ./test/bin/normalized"),
@@ -48,7 +48,7 @@ const cli = tasks.cli(process.argv, {
   "install" : install(),
   "clean"   : clean(),
   "build"   : build(),
-  'test'    : test()
+  'watch'   : watch()
 })
 
 cli.subscribe(event => {

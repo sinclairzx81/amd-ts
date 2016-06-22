@@ -26,6 +26,7 @@ declare module amd {
         error: any;
         constructor(resolver: FutureResolverFunc<T>);
         then<U>(func: (value: T) => U): Future<U>;
+        public: any;
         catch<U>(func: (error: any) => U): Future<U>;
         run(): void;
         static resolve<T>(value: T): Future<T>;
