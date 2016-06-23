@@ -323,8 +323,13 @@ var amd;
                 return;
             }
             var definition = extracted[0];
+            if (parameter.accumulator.some(function (n) { return n.id === definition.id; })) {
+                resolve(parameter.accumulator);
+                return;
+            }
             parameter.accumulator.unshift(definition);
             var searches = definition.dependencies
+                .filter(function (id) { return !(parameter.accumulator.some(function (def) { return def.id === id; })); })
                 .map(function (id) { return amd.search({
                 id: id,
                 path: amd.path.resolve(parameter.path, id),
@@ -347,8 +352,10 @@ var amd;
         var definitions = space.filter(function (definition) { return definition.id === id; });
         if (definitions.length === 0)
             throw Error("resolve: unable to find module " + id);
-        if (definitions.length > 1)
+        if (definitions.length > 1) {
+            console.log(definitions);
             throw Error("resolve: found multiple defintions with the same id for " + id);
+        }
         var definition = definitions[0];
         var args = definition.dependencies.map(function (id) { return amd.resolve(id, space, cached); });
         var output = definition.factory.apply({}, args);
@@ -383,11 +390,16 @@ var amd;
                             return undefined;
                         definitions.unshift({
                             id: "require",
-                            dependencies: ["exports"],
-                            factory: function (exports) { exports.require = amd.require; }
+                            dependencies: [],
+                            factory: function () { return amd.require; }
                         });
                         var id = definitions[definitions.length - 1].id;
-                        return amd.resolve(id, definitions, {});
+                        try {
+                            return amd.resolve(id, definitions, {});
+                        }
+                        catch (error) {
+                            reject(error);
+                        }
                     });
                     param.callback.apply({}, output);
                     resolve(output);

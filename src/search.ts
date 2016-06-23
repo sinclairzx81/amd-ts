@@ -36,6 +36,7 @@ namespace amd {
 
   /** 
    * SearchParameter:
+   * 
    * Parameter given to the search function. callers
    * are to pass the id/path of the module. The
    * path (which may be relative) and a accumulator
@@ -73,7 +74,7 @@ namespace amd {
   }
 
   /**
-   * recursively searches for module definitions building up a definition accumulator.
+   * recursively searches for module definitions building up a definition accumulator along the way.
    * @param {SearchParameter} the search parameter.
    * @returns {Definition[]} definitions found during the search.
    */
@@ -90,12 +91,12 @@ namespace amd {
       resolve(parameter.accumulator); return
     }
 
-    // cyclic check:
+    // (bug) cyclic check:
     //
     // we only want to search a module once, here 
     // we check the definition space to see if we 
     // have already searched this module. if so, 
-    // return.
+    // just resolve and return.
     if(parameter.accumulator.some(definition => definition.id === parameter.id)) {
       resolve(parameter.accumulator); return
     }
@@ -112,19 +113,15 @@ namespace amd {
       // definitions. we do this by passing it over to
       // the discover function, it returns definitions.
       let extracted: Definition[] = null
-      try {
-        extracted = extract(parameter.id, content)
-      }
-      catch(error) {
-        reject(error)
-        return
-      }
+      try  { extracted = extract(parameter.id, content) }
+      catch(error) { reject(error); return }
       
       // nothing:
       //
       // its possible to require a module with 0
-      // definitions (i.e the module didn't define())
-      // anything. In this scenario, just return.
+      // definitions (i.e the module didn't define()
+      // anything). In this scenario, just resolve 
+      // and return.
       if(extracted.length === 0) {
         resolve(parameter.accumulator)
         return
@@ -132,8 +129,8 @@ namespace amd {
 
       // bundled:
       //
-      // there is no definition for bundled AMD
-      // modules at this time, this library makes
+      // there is no specification i could find for 
+      // bundled AMD modules, this library makes
       // the assumption that one definition per file
       // is the norm, and multiple definitions are
       // considered bundles. in this case, we just
@@ -143,16 +140,24 @@ namespace amd {
         return
       }
 
-      // single:
+      // single definition:
       //
       // at this point, we know we have just loaded
-      // a module with only 1 definition inside, we
-      // need to unshift this definition on the accumulator.
-      // note that by unshifting, we have alignment with
-      // the typescript convention of defining the top 
-      // most module last in a bundle. 
+      // a module with only 1 definition inside. this
+      // is typical behavior. store it.
       let definition = extracted[0]
-      parameter.accumulator.unshift(definition)
+
+      // (bug) prevent duplicates.
+      //
+      // because we may arrive at a module from varying
+      // locations, the path/id be varying even for the 
+      // same module. A better pathing mechansism is 
+      // required to prevent this, however, by checking
+      // that we don't already have the definition is
+      // a quick fix to prevent any duplicates.
+      if(parameter.accumulator.some(n => n.id === definition.id)) {
+        resolve(parameter.accumulator); return
+      } parameter.accumulator.unshift(definition)
 
       // search more:
       //
@@ -161,15 +166,21 @@ namespace amd {
       // this definition. we build up a new search for
       // each dependency found, noting that the path
       // to the dependency is relative to the current
-      // definition (from the modules perspective)
+      // definition (from the modules perspective).
+      // also note, that we want to filter out 
+      // any ids we already have..check the accumulator.
       let searches = definition.dependencies
-                               .map(id => search({
+                               // (bug) : still causing multiple searches on the same module.
+                               //         need to look at potentially passing a global root
+                               //         and pathing relative to that.
+                               .filter(id => !(parameter.accumulator.some(def => def.id === id))) 
+                               .map   (id => search({
                                   id          : id, 
                                   path        : amd.path.resolve(parameter.path, id),
                                   accumulator : parameter.accumulator
                                }))
       
-      // search and resolve.   
+      // search, then resolve.   
       amd.Promise
          .all   (searches)
          .then  (()    => resolve(parameter.accumulator))

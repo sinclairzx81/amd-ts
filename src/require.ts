@@ -94,7 +94,7 @@ namespace amd {
           accumulator: []
         }))
         amd.Promise.all(searches).then(result => {
-           
+            
             // definition spaces:
             //
             // the result of the searches (run in parallel)
@@ -124,10 +124,10 @@ namespace amd {
               // below.
               definitions.unshift({
                 id           : "require", 
-                dependencies : ["exports"], 
-                factory      : (exports) => { exports.require = amd.require } 
+                dependencies : [], 
+                factory      : () => amd.require 
               })
-
+              
               // last module rule:
               //
               // the search function will always return the 
@@ -135,9 +135,9 @@ namespace amd {
               // in a definition space. This makes selecting
               // the top most definition in the space trivial.
               let id = definitions[definitions.length - 1].id
-              return amd.resolve(id, definitions, {})
+              try { return amd.resolve(id, definitions, {}) } 
+              catch(error) { reject(error) }
             })
-
             param.callback.apply({}, output)
             resolve(output)
         }).catch(reject)

@@ -38,7 +38,7 @@ namespace amd {
    * @returns {any} the modules exports.
    */
   export const resolve = (id: string, space: Definition[], cached?: any) : any => {
-
+    
     // special case for exports:
     //
     // TypeScript opts to write its module
@@ -68,7 +68,10 @@ namespace amd {
     // in the space with the same id.
     let definitions = space.filter(definition => definition.id === id)
     if(definitions.length === 0) throw Error("resolve: unable to find module " + id)
-    if(definitions.length >   1) throw Error("resolve: found multiple defintions with the same id for " + id)
+    if(definitions.length >   1) { 
+      console.log(definitions)
+      throw Error("resolve: found multiple defintions with the same id for " + id)
+    }
     
     let definition = definitions[0]
 
