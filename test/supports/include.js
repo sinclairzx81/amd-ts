@@ -1,0 +1,1 @@
+var INJECTED_VALUE = "this value was injected into the dom"

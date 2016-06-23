@@ -26,51 +26,69 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
-/// <reference path="future.ts" />
-/// <reference path="http.ts" />
-/// <reference path="path.ts" />
-/// <reference path="definition.ts" />
-/// <reference path="evaluate.ts" />
+/// <reference path="./promise.ts" />
+/// <reference path="./http.ts" />
+/// <reference path="./path.ts" />
+/// <reference path="./signature.ts" />
+/// <reference path="./definition.ts" />
 
 namespace amd {
 
-  /** the search parameter */
-  export interface SearchRequest {
-    /** the id of the module to search. */
-    id  : string
-    /** the path of the module to search. */
-    path: string
+  /** 
+   * SearchParameter:
+   * Parameter given to the search function. callers
+   * are to pass the id/path of the module. The
+   * path (which may be relative) and a accumulator
+   * in which to gather definitions found during the
+   * search.
+   */
+  export interface SearchParameter {
+    id         : string
+    path       : string
+    accumulator: Definition[]
   }
 
-  /** the search parameter. */
-  export interface SearchResponse {
-    /** true if the search discovered a bundled module. */
-    module_type  : "normalized" | "bundled" | "script"
-    /** the definitions found during the search */
-    definitions  : Definition[]
+  /**
+   * extracts definitions from the given module code.
+   * @param {string} the id of the module.
+   * @param {string} the code to evaluate.
+   * @returns {Definition[]} the definitions.
+   */
+  const extract = (id: string, code: string) : Definition[] => {
+    let definitions = []
+    let define:any  = (...args: any[]) => {
+      definitions.push(amd.signature<Definition>(args, [
+        { pattern: ["function"],                    map: args => ({ id: id,      dependencies: [],      factory: args[0] })},
+        { pattern: ["string", "function"],          map: args => ({ id: args[0], dependencies: [],      factory: args[1] })},
+        { pattern: ["string", "array", "function"], map: args => ({ id: args[0], dependencies: args[1], factory: args[2] })},
+        { pattern: ["array", "function"],           map: args => ({ id: id,      dependencies: args[0], factory: args[1] })},
+        { pattern: ["object"],                      map: args => ({ id: id,      dependencies: [],      factory: () => args[0] })},
+        { pattern: ["string", "object"],            map: args => ({ id: args[0], dependencies: [],      factory: () => args[1] })},
+        { pattern: ["string", "array", "object"],   map: args => ({ id: args[0], dependencies: args[1], factory: () => args[2] })}
+      ]))
+    }
+    define.amd = true
+    eval(`(function(define) { ${code}\n })`)(define)
+    return definitions
   }
-  
+
   /**
    * recursively searches for module definitions building up a definition accumulator.
-   * @param {path} the path to search from.
-   * @param {id} the id of the module.
-   * @param {Definition[]} an array to build up definitions.
-   * @returns {Future<{[name: string]: Definition}>} the accumulated definitions found in the search.
+   * @param {SearchParameter} the search parameter.
+   * @returns {Definition[]} definitions found during the search.
    */
-  export const search = (parameter: SearchRequest, definitions: Definition[]) => new amd.Future<SearchResponse>((resolve, reject) => {
+  export const search = (parameter: SearchParameter) => new amd.Promise<Definition[]>((resolve, reject) => {
 
     // exports and require:
     //
     // when searching, we are going to hit requests
-    // to search for 'require' and 'exports'. These
-    // modules don't actually exist and are reserved
-    // by the amd api. we simply ignore and return.
-    // the handling of both are managed by the execution
-    // phase.
+    // to come across instances where a module expects
+    // a dependency on exports or require. In this 
+    // scenario, we just return, and pick up the tab
+    // during the resolve phase.
     if (parameter.id === "exports" || parameter.id === "require") {
-      resolve({module_type: "normalized", definitions: definitions})
-      return
-    } 
+      resolve(parameter.accumulator); return
+    }
 
     // cyclic check:
     //
@@ -78,70 +96,84 @@ namespace amd {
     // we check the definition space to see if we 
     // have already searched this module. if so, 
     // return.
-    if(definitions.some(definition => definition.id === parameter.id)) {
-      resolve({module_type: "normalized", definitions: definitions})
-      return
+    if(parameter.accumulator.some(definition => definition.id === parameter.id)) {
+      resolve(parameter.accumulator); return
     }
 
-    // load content:
+    // http:
     // 
     // here we make our http request out to load the
-    // module. we postfix the module id with js in
-    // keeping with the AMD module spec.
+    // module. postfix the path with .js and go.
     amd.http.get(parameter.path + ".js").then(content => {
 
-      // evaluate:
+      // discover:
       //
-      // from the http content, we now evaluate the it as 
-      // javascript. The evaluator will scan the script
-      // for definitions, they given on the discovered
-      // result.
-      let discovered = amd.evaluate(parameter.id, content)
-
-      // no definitions:
+      // from the http response, we need to read out any
+      // definitions. we do this by passing it over to
+      // the discover function, it returns definitions.
+      let extracted: Definition[] = null
+      try {
+        extracted = extract(parameter.id, content)
+      }
+      catch(error) {
+        reject(error)
+        return
+      }
+      
+      // nothing:
       //
-      // if no definitions are found, perhaps
-      // this script was not a amd module. 
-      if(discovered.length == 0) {
-        resolve({module_type: "script", definitions: definitions})
+      // its possible to require a module with 0
+      // definitions (i.e the module didn't define())
+      // anything. In this scenario, just return.
+      if(extracted.length === 0) {
+        resolve(parameter.accumulator)
         return
       }
 
-      // more than 1 definition:
+      // bundled:
       //
-      // we interpret this module as being bundled.
-      // in this case, we don't bother searching any
-      // more and just returned whatever the evaluator
-      // discovered.
-      if(discovered.length > 1) {
-        resolve({module_type: "bundled", definitions: discovered})
+      // there is no definition for bundled AMD
+      // modules at this time, this library makes
+      // the assumption that one definition per file
+      // is the norm, and multiple definitions are
+      // considered bundles. in this case, we just
+      // return the extracted definitions and return.
+      if(extracted.length > 1) {
+        resolve(extracted)
         return
       }
 
-      // single definition:
+      // single:
       //
-      // if the evaluator only found 1 definition,
-      // there is a high likelyhook of additional
-      // modules to be search. here we push the 
-      // discovered definition into the accumulator
-      // and build start up another search.
-      definitions.push(discovered[0])
-      let searches = discovered[0]
-                      .dependencies
-                      .map(id => search({
-                        id   : id, 
-                        path : amd.path.resolve(parameter.path, id)
-                      }, definitions))
+      // at this point, we know we have just loaded
+      // a module with only 1 definition inside, we
+      // need to unshift this definition on the accumulator.
+      // note that by unshifting, we have alignment with
+      // the typescript convention of defining the top 
+      // most module last in a bundle. 
+      let definition = extracted[0]
+      parameter.accumulator.unshift(definition)
 
       // search more:
       //
-      // start up the search in parallel. resolve 
-      // once finished.
-      amd.Future.parallel(searches)
-                .then(() => resolve({module_type: "normalized", definitions: definitions}))
-                .catch(reject)
-                .run()
-
-    }).catch(reject).run()
+      // the definition will likely have dependencies 
+      // which need to be searched before we can resolve
+      // this definition. we build up a new search for
+      // each dependency found, noting that the path
+      // to the dependency is relative to the current
+      // definition (from the modules perspective)
+      let searches = definition.dependencies
+                               .map(id => search({
+                                  id          : id, 
+                                  path        : amd.path.resolve(parameter.path, id),
+                                  accumulator : parameter.accumulator
+                               }))
+      
+      // search and resolve.   
+      amd.Promise
+         .all   (searches)
+         .then  (()    => resolve(parameter.accumulator))
+         .catch (error => reject(error))
+    }).catch(reject)
   })
 }

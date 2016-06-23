@@ -30,6 +30,7 @@ namespace amd {
 
   /** amd phase indicator. */
   export type Phase =  "require"    // top level require.
+                      | "reference" // top level reference.
                       | "search"    // the search phase (recursive gather) 
                       | "http"      // the http request 
                       | "evaluate"  // definition resolution.

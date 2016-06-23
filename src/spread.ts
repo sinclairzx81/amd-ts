@@ -26,32 +26,13 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
-/// <reference path="promise.ts" />
+namespace amd {
 
-namespace amd.http {
-  
   /**
-   * http gets the content at the given url.
-   * @param {string} the url endpoint.
-   * @returns {Future<string>}
+   * spread operator, fall back for ES6 tuple.
+   * @param {any[]} the array to spread.
+   * @param {(...args: any[]) => void} the function to receive the array values as arguments.
+   * @returns {void}
    */
-  export const get = (url: string) => new amd.Promise<string>((resolve, reject) => {
-    let xhr = new XMLHttpRequest()
-    xhr.addEventListener("readystatechange", event => {
-      switch(xhr.readyState) {
-        case 4:
-          switch(xhr.status) {
-            case 200: 
-              resolve (xhr.responseText); 
-              break;
-            default:  
-              reject  ("http: unable to GET content at " + url); 
-              break;
-          } break;
-      }
-    })
-    xhr.open("GET", url, true)
-    xhr.send()
-  })
-
+  export const spread = (arr: any[], func:(...args: any[]) => void) : void => func.apply({}, arr)
 }

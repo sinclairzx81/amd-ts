@@ -26,21 +26,22 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
+/// <reference path="./promise.ts" />
+
 namespace amd {
 
-  let queue   = []
   let loaded  = false
+  let queue   = []
   window.addEventListener("load", () => {
     loaded = true
-    while(queue.length > 0) queue.shift()()
+    while(queue.length > 0) queue.shift()({})
   })
 
   /**
-   * queues this function until the window.onload event is signalled.
-   * @param {() => void} the function to queue.
-   * @returns {void}
+   * returns a promise that resolves once the window.onload event has fired.
+   * @returns {Promise<any>}
    */
-  export const ready = (func: () => void) : void => {
-    (loaded === false) ? queue.push(func) : func()
-  }
+  export const ready = () => new amd.Promise<any>((resolve, reject) => {
+    (loaded === false) ? queue.push(resolve) : resolve({})
+  })
 }

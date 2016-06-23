@@ -18,8 +18,9 @@ const install = () => tasks.series([
 // cleans up build directories.
 //--------------------------------------------------
 const clean = () => tasks.series([
-  tasks.drop("./bin"),
-  tasks.drop("./test/bin")
+  tasks.trycatch(() => tasks.drop("./bin"),      () => tasks.ok("can't drop ./bin .. oh well..")),
+  tasks.trycatch(() => tasks.drop("./test/bin"), () => tasks.ok("can't drop ./test/bin")),
+  tasks.ok("clean!")
 ])
 
 //--------------------------------------------------
@@ -35,9 +36,9 @@ const build = () => tasks.series([
 // sets up the browser tests on port 5000
 //--------------------------------------------------
 const watch = () => tasks.parallel([
-  tasks.shell("tsc -w -p ./src/tsconfig.json --outFile  ./test/amd/amd.js"),
-  tasks.shell("tsc -w -p ./test/tsconfig.json --outFile ./test/bin/bundled/app.js"),
-  tasks.shell("tsc -w -p ./test/tsconfig.json --outDir  ./test/bin/normalized"),
+  tasks.shell("tsc -w -p ./src/tsconfig.json  --outFile  ./test/amd/amd.js"),
+  tasks.shell("tsc -w -p ./test/tsconfig.json --outFile ./test/bin/bundle/app.js"),
+  tasks.shell("tsc -w -p ./test/tsconfig.json --outDir  ./test/bin/standard"),
   tasks.shell("starting test on port 5000", "cd test && serve -p 5000")
 ])
 

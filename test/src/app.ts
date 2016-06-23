@@ -1,6 +1,5 @@
 import * as indexed     from "./indexed/index"
 import * as indexed_dir from "./indexed_dir/index"
-import * as errors      from "./errors/index"
 
 export function test() {
   indexed.test    ()

@@ -27,28 +27,25 @@ THE SOFTWARE.
 ---------------------------------------------------------------------------*/
 
 /// <reference path="definition.ts" />
-/// <reference path="error.ts" />
 
 namespace amd {
 
   /**
-   * resolves and executes the module definition to gather its exports.
+   * returns the exports for the given module id gathering from the definition space.
    * @param {string} the id of the module to be resolved.
    * @param {Definition[]} the definition space. 
    * @param {any} a cache to store resolved modules.
    * @returns {any} the modules exports.
    */
-  export const execute = (id: string, space: Definition[], cached?: any) : any => {
+  export const resolve = (id: string, space: Definition[], cached?: any) : any => {
 
     // special case for exports:
     //
-    // when we gather for arguments, modules will
-    // attempt to gather for "exports". this happens
-    // during the argument gathering step. In the
-    // context of amd, the "exports" is the object
-    // the module will write to. because of this,
-    // we just return a new object, no caching, 
-    // just this.
+    // TypeScript opts to write its module
+    // output on this exports dependency,
+    // here we give it what it wants and return
+    // a empty object for it to write to, we 
+    // collect it later on....
     if(id === "exports") return {}
 
 
@@ -70,31 +67,40 @@ namespace amd {
     // for ambiguity and detect multiple definitions
     // in the space with the same id.
     let definitions = space.filter(definition => definition.id === id)
-    if(definitions.length === 0) throw amd.error("execute", "unable to find module " + id, null)
-    if(definitions.length >   1) throw amd.error("execute", "found multiple defintions with the same id for " + id, null)
+    if(definitions.length === 0) throw Error("resolve: unable to find module " + id)
+    if(definitions.length >   1) throw Error("resolve: found multiple defintions with the same id for " + id)
     
+    let definition = definitions[0]
+
     // gather arguments:
     //
     // we kick off a recursive execute to gather
     // arguments for this definition. its important
     // to note that we don't get into cyclic loops
     // due to the caching of modules.
-    let args = definitions[0].dependencies.map(id => amd.execute(id, space, cached))
+    let args = definition.dependencies.map(id => amd.resolve(id, space, cached))
     
-    // execute:
+    // boot it:
     //
-    // here, we execute the definitions factory
-    // method. its exports are going to be written
-    // to during the execution. we collect them below.
-    try { definitions[0].factory.apply({}, args)  }
-    catch(error) { throw amd.error("execute", "unable to execute module " + id, error) }
+    // at this point, we have the args to pass to this
+    // modules factory, do so and store output for
+    // the check below.
+    let output = definition.factory.apply({}, args)
+    // return or exports??
+    //
+    // here, we run a check to see if this module took 
+    // "exports" as a dependency. This would be the case
+    // for typescript, but unlikely for other AMD modules.
+    // If we do detect the exports dependency, we use this
+    // instead of the output of the factory.
+    if(definitions[0].dependencies.indexOf("exports") !== -1) 
+      output = args[definitions[0].dependencies.indexOf("exports")];
+    
 
     // cache and return:
     //
-    // here, we have a slightly unusualy mechanism
-    // for gathering the exports. we obtain the exports
-    // by obtaining the index offset ot "exports". We
-    // then cache for subsequent calls and return.
-    return cached[id] = args[definitions[0].dependencies.indexOf("exports")];
+    // To prevent cyclic resolution of the same module,
+    // we cache the output and return.
+    return cached[id] = output;
   }
 }

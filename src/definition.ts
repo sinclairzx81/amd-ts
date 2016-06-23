@@ -27,21 +27,17 @@ THE SOFTWARE.
 ---------------------------------------------------------------------------*/
 
 namespace amd {
-
-  /** 
-   * Definition:
+  /**
+   * Definition
    * 
-   * Common definition obtained during a search or manually.
-  */
+   * This libraries definition of a module. Definitions
+   * are given from searches, and used during resolution
+   * to construct a module.
+   */
   export interface Definition {
-
-    /** the id of this definition */
     id            : string,
-
-    /** and array of dependencies for this definition. */
     dependencies  : string[]
-    
-    /** this definitions factory function. */
-    factory       : (...args: any[]) => void
-  }  
+    factory       : (...args: any[]) => any
+  }
 }
+  

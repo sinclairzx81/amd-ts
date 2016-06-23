@@ -1,3 +1,4 @@
+
 <html>
   <style type="text/css">
     * {
@@ -21,75 +22,95 @@
       pre.innerHTML = ""
     }
 
-    var require_bundled = function() {
+    var require_ts_bundle = function() {
       log("------------------")
-      log("requiring bundled")
+      log("require: ts bundle")
       log("------------------")
-      amd.require("bin/bundled/app", function(bundled) {
+      amd.require("bin/bundle/app", function(bundle) {
         log("------------------")
-        log("testing bundled")
+        log("testing: ts bundle")
         log("------------------")
-        bundled.test()
+        bundle.test()
       })
     }
 
-    var require_normalized = function() {
+    var require_ts_normal = function() {
       log("------------------")
-      log("requiring normalized")
+      log("require: ts standard")
       log("------------------")
-      amd.require("bin/normalized/app", function(normalized) {
+      amd.require("bin/standard/app", function(standard) {
         log("------------------")
-        log("testing normalized")
+        log("testing: ts standard")
         log("------------------")
-        normalized.test()
+        standard.test()
       })
     }
     
-    var require_multiple = function() {
+    var require_standard_and_bundle = function() {
       log("------------------")
-      log("requiring multiple")
+      log("require: standard and bundle ")
       log("------------------")
-      amd.require(["bin/normalized/app", "bin/bundled/app"], function(normalized, bundled) {
+      amd.require(["bin/standard/app", "bin/bundle/app"], function(standard, bundle) {
         log("------------------")
-        log("testing normalized")
+        log("testing standard")
         log("------------------")
-        normalized.test ()
+        standard.test ()
         log("------------------")
-        log("testing bundled")
+        log("testing bundle")
         log("------------------")
-        bundled.test()
+        bundle.test()
       })
     }
 
-    var require_inject = function() {
+    var require_amd_exports_on_return = function() {
       log("------------------")
-      log("requiring inject")
+      log("require: amd exports on return.")
       log("------------------")
-      amd.require("bin/inject", function() {
-        INJECTED.test()
+      amd.require("supports/exports_on_return", function(amd) {
+        log("------------------")
+        log("testing:  amd exports on return.")
+        log("------------------")
+        amd.test()
       })
     }
-
-    var require_error = function() {
+    var require_syntax_error = function() {
       log("------------------")
       log("requiring errors")
       log("------------------")
-      amd.require("bin/normalized/errors/index", function(errors) {
-        log("------------------")
-        log("testing errors")
-        log("------------------")
-        normalized.test ()
+      amd.require("./supports/error_syntax", function(mod) {
+        log(mod)
+      }).catch(error => log(error))
+    }
+
+    var require_no_module = function() {
+      log("------------------")
+      log("requiring errors")
+      log("------------------")
+      amd.require("./supports/error_no_module", function(mod) {
+        log(mod)
+      }).catch(error => log(error))
+    }
+
+    var include_script = function() {
+      log("------------------")
+      log("include: script")
+      log("------------------")
+      amd.include("./supports/include").then(function() {
+        log(INJECTED_VALUE)
       })
     }
+    
   </script>
   <body>
       <h3>output in console - expect identical output for normalized and bundled.</h3>
-      <input type="button" value="require normalized" onclick="require_normalized()" />
-      <input type="button" value="require bundled"    onclick="require_bundled()" />
-      <input type="button" value="require multiple"   onclick="require_multiple()" />
-      <input type="button" value="require inject"     onclick="require_inject()" />
-      <input type="button" value="require error"      onclick="require_error()" />
-      <input type="button" value="clear console"      onclick="clearall()" />
+      <input type="button" value="clear"                         onclick="clearall()" />
+      <input type="button" value="require typescript standard"   onclick="require_ts_normal()" />
+      <input type="button" value="require typescript bundle"     onclick="require_ts_bundle()" />
+      <input type="button" value="require standard and bundle"   onclick="require_standard_and_bundle()" />
+      <input type="button" value="require amd exports on return" onclick="require_amd_exports_on_return()" />
+      <input type="button" value="include script"                onclick="include_script()" />
+      <input type="button" value="require syntax error"          onclick="require_syntax_error()" />
+      <input type="button" value="require no module"             onclick="require_no_module()" />
       <pre id="log"></pre>
   </body>
 </html>
