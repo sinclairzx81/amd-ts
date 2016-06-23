@@ -79,7 +79,7 @@
       log("------------------")
       amd.require("./supports/error_syntax", function(mod) {
         log(mod)
-      }).catch(error => log(error))
+      }).catch(function(error) { log(error) })
     }
 
     var require_no_module = function() {
@@ -88,7 +88,7 @@
       log("------------------")
       amd.require("./supports/error_no_module", function(mod) {
         log(mod)
-      }).catch(error => log(error))
+      }).catch(function(error) { log(error) })
     }
 
     var include_script = function() {
@@ -99,7 +99,7 @@
         log(INJECTED_VALUE)
       })
     }
-    
+
   </script>
   <body>
       <h3>output in console - expect identical output for normalized and bundled.</h3>
