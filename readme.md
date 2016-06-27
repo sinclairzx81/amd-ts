@@ -7,15 +7,15 @@ An implementation of the amd specification in typescript.
 <script type="text/javascript">
 
 amd.ready(function() {
-  // dom is ready
+  // DOM is ready
 })
 
 amd.include(["./script1.js", "./script2.js"], function() {
-  // scripts are loaded
+  // non AMD modules loaded
 })
 
 amd.require(["./app", "./services"], function(app, services) { 
-  // amd modules imported.
+  // AMD modules loaded.
 })
 
 </script>
