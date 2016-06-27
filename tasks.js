@@ -11,7 +11,6 @@ const tasks = require("./tasksmith.js")
 //--------------------------------------------------
 const install = () => tasks.series([
   tasks.shell("npm install typescript -g"),
-  tasks.shell("npm install serve -g")
 ])
 
 //--------------------------------------------------
@@ -39,7 +38,7 @@ const watch = () => tasks.parallel([
   tasks.shell("tsc -w -p ./src/tsconfig.json  --outFile  ./test/amd/amd.js"),
   tasks.shell("tsc -w -p ./test/tsconfig.json --outFile ./test/bin/bundle/app.js"),
   tasks.shell("tsc -w -p ./test/tsconfig.json --outDir  ./test/bin/standard"),
-  tasks.shell("starting test on port 5000", "cd test && serve -p 5000")
+  tasks.serve("./test", 5000, true, 1000)
 ])
 
 //--------------------------------------------------

@@ -30,6 +30,12 @@ THE SOFTWARE.
 
 namespace amd {
 
+  /**
+   * on page load:
+   * set up a window load event listener,
+   * swap state to loaded on load, and 
+   * dispatch any queued up ready functions.
+   */
   let loaded  = false
   let queue   = []
   window.addEventListener("load", () => {
@@ -39,9 +45,37 @@ namespace amd {
 
   /**
    * returns a promise that resolves once the window.onload event has fired.
+   * @param {(d:any) => void} optional callback to be invoked once ready.
    * @returns {Promise<any>}
    */
-  export const ready = () => new amd.Promise<any>((resolve, reject) => {
-    (loaded === false) ? queue.push(resolve) : resolve({})
-  })
+  export function ready (callback?: (d: any) => void) : amd.Promise<any>
+
+  /**
+   * returns a promise that resolves once the window.onload event has fired.
+   * @returns {Promise<any>}
+   */
+  export function ready () : amd.Promise<any>
+
+  /**
+   * returns a promise that resolves once the window.onload event has fired.
+   * @param {any[]} arguments
+   * @returns {Promise<any>}
+   */
+  export function ready (...args: any[]): amd.Promise<any>  {
+    let param = amd.signature<{
+      func  : (d:any) => void
+    }> (args, [
+      {  pattern: ["function"], map: (args) => ({ func: args[0]  }) },
+      {  pattern: [],           map: (args) => ({ func: () => {}  }) },
+    ])
+    return new amd.Promise<any>((resolve, reject) => {
+      if(loaded === false) {
+        queue.push(param.func)
+        queue.push(resolve)
+      } else {
+        param.func({})
+        resolve({})
+      }
+    })
+  }
 }

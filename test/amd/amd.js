@@ -4,43 +4,6 @@ var amd;
 })(amd || (amd = {}));
 var amd;
 (function (amd) {
-    var reflect = function (obj) {
-        if (typeof obj === "function")
-            return "function";
-        if (typeof obj === "string")
-            return "string";
-        if (typeof obj === "number")
-            return "number";
-        if (typeof obj === "boolean")
-            return "boolean";
-        if (typeof obj === "object") {
-            if (obj instanceof Array)
-                return "array";
-            if (obj instanceof Date)
-                return "date";
-        }
-        return "object";
-    };
-    var match = function (args, mapping) {
-        if (args.length !== mapping.pattern.length)
-            return false;
-        else
-            return mapping.pattern.every(function (type, index) {
-                return reflect(args[index]) === type;
-            });
-    };
-    amd.signature = function (args, mappings) {
-        var matches = mappings.filter(function (mapping) { return match(args, mapping); });
-        if (matches.length === 1)
-            return matches[0].map(args);
-        else if (matches.length > 1)
-            throw Error("signature: ambiguous arguments.");
-        else
-            throw Error("signature: no overload found for given arguments.");
-    };
-})(amd || (amd = {}));
-var amd;
-(function (amd) {
     var Promise = (function () {
         function Promise(executor) {
             var _this = this;
@@ -175,6 +138,74 @@ var amd;
 })(amd || (amd = {}));
 var amd;
 (function (amd) {
+    var loaded = false;
+    var queue = [];
+    window.addEventListener("load", function () {
+        loaded = true;
+        while (queue.length > 0)
+            queue.shift()({});
+    });
+    function ready() {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        var param = amd.signature(args, [
+            { pattern: ["function"], map: function (args) { return ({ func: args[0] }); } },
+            { pattern: [], map: function (args) { return ({ func: function () { } }); } },
+        ]);
+        return new amd.Promise(function (resolve, reject) {
+            if (loaded === false) {
+                queue.push(param.func);
+                queue.push(resolve);
+            }
+            else {
+                param.func({});
+                resolve({});
+            }
+        });
+    }
+    amd.ready = ready;
+})(amd || (amd = {}));
+var amd;
+(function (amd) {
+    var reflect = function (obj) {
+        if (typeof obj === "function")
+            return "function";
+        if (typeof obj === "string")
+            return "string";
+        if (typeof obj === "number")
+            return "number";
+        if (typeof obj === "boolean")
+            return "boolean";
+        if (typeof obj === "object") {
+            if (obj instanceof Array)
+                return "array";
+            if (obj instanceof Date)
+                return "date";
+        }
+        return "object";
+    };
+    var match = function (args, mapping) {
+        if (args.length !== mapping.pattern.length)
+            return false;
+        else
+            return mapping.pattern.every(function (type, index) {
+                return reflect(args[index]) === type;
+            });
+    };
+    amd.signature = function (args, mappings) {
+        var matches = mappings.filter(function (mapping) { return match(args, mapping); });
+        if (matches.length === 1)
+            return matches[0].map(args);
+        else if (matches.length > 1)
+            throw Error("signature: ambiguous arguments.");
+        else
+            throw Error("signature: no overload found for given arguments.");
+    };
+})(amd || (amd = {}));
+var amd;
+(function (amd) {
     var http;
     (function (http) {
         http.get = function (url) { return new amd.Promise(function (resolve, reject) {
@@ -207,8 +238,10 @@ var amd;
         }
         return new amd.Promise(function (resolve, reject) {
             var param = amd.signature(args, [
-                { pattern: ["string"], map: function (args) { return ({ ids: [args[0]] }); } },
-                { pattern: ["array",], map: function (args) { return ({ ids: args[0] }); } }
+                { pattern: ["string", "function"], map: function (args) { return ({ ids: [args[0]], func: args[1] }); } },
+                { pattern: ["array", "function"], map: function (args) { return ({ ids: args[0], func: args[1] }); } },
+                { pattern: ["string"], map: function (args) { return ({ ids: [args[0]], func: function () { } }); } },
+                { pattern: ["array"], map: function (args) { return ({ ids: args[0], func: function () { } }); } }
             ]);
             var paths = param.ids.map(function (id) { return (id.indexOf(".js") === -1) ? id + ".js" : id; });
             var requests = paths.map(function (path) { return amd.http.get(path); });
@@ -225,25 +258,13 @@ var amd;
                     catch (error) {
                         reject(error);
                     }
+                    param.func({});
                     resolve({});
                 });
             }).catch(reject);
         });
     }
     amd.include = include;
-})(amd || (amd = {}));
-var amd;
-(function (amd) {
-    var loaded = false;
-    var queue = [];
-    window.addEventListener("load", function () {
-        loaded = true;
-        while (queue.length > 0)
-            queue.shift()({});
-    });
-    amd.ready = function () { return new amd.Promise(function (resolve, reject) {
-        (loaded === false) ? queue.push(resolve) : resolve({});
-    }); };
 })(amd || (amd = {}));
 var amd;
 (function (amd) {
@@ -352,10 +373,8 @@ var amd;
         var definitions = space.filter(function (definition) { return definition.id === id; });
         if (definitions.length === 0)
             throw Error("resolve: unable to find module " + id);
-        if (definitions.length > 1) {
-            console.log(definitions);
+        if (definitions.length > 1)
             throw Error("resolve: found multiple defintions with the same id for " + id);
-        }
         var definition = definitions[0];
         var args = definition.dependencies.map(function (id) { return amd.resolve(id, space, cached); });
         var output = definition.factory.apply({}, args);

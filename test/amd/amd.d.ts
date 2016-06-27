@@ -2,14 +2,6 @@ declare namespace amd {
     const spread: (arr: any[], func: (...args: any[]) => void) => void;
 }
 declare namespace amd {
-    type SignatureTypeName = "function" | "string" | "number" | "array" | "object" | "date" | "boolean";
-    interface SignatureMapping<T> {
-        pattern: SignatureTypeName[];
-        map: (args: any[]) => T;
-    }
-    const signature: <T>(args: any[], mappings: SignatureMapping<T>[]) => T;
-}
-declare namespace amd {
     interface Reject {
         (reason: string | Error): void;
     }
@@ -37,15 +29,26 @@ declare namespace amd {
         private _reject(reason);
     }
 }
+declare namespace amd {
+    function ready(callback?: (d: any) => void): amd.Promise<any>;
+    function ready(): amd.Promise<any>;
+}
+declare namespace amd {
+    type SignatureTypeName = "function" | "string" | "number" | "array" | "object" | "date" | "boolean";
+    interface SignatureMapping<T> {
+        pattern: SignatureTypeName[];
+        map: (args: any[]) => T;
+    }
+    const signature: <T>(args: any[], mappings: SignatureMapping<T>[]) => T;
+}
 declare namespace amd.http {
     const get: (url: string) => Promise<string>;
 }
 declare namespace amd {
     function include(id: string, func: () => void): amd.Promise<any>;
     function include(ids: string[], func: () => void): amd.Promise<any>;
-}
-declare namespace amd {
-    const ready: () => Promise<any>;
+    function include(id: string): amd.Promise<any>;
+    function include(ids: string[]): amd.Promise<any>;
 }
 declare namespace amd.path {
     function basename(path: string): string;

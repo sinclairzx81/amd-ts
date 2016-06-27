@@ -35,6 +35,7 @@ namespace amd {
   /**
    * includes this script. same as using a script tag on the page.
    * @param {string} the id/path of the script.
+   * @param {(d:any) => void} optional callback invoked once script is included.
    * @returns {Promise<any>}
    */
   export function include(id: string, func: () => void) : amd.Promise<any>
@@ -42,9 +43,24 @@ namespace amd {
   /**
    * includes these scripts. same as adding script tags to a page.
    * @param {string[]} the ids/paths of the modules.
+   * @param {(d:any) => void} optional callback invoked once script is included.
    * @returns {Promise<any>}
    */
   export function include(ids: string[], func: () => void) :  amd.Promise<any>
+
+  /**
+   * includes this script. same as using a script tag on the page.
+   * @param {string} the id/path of the script.
+   * @returns {Promise<any>}
+   */
+  export function include(id: string) : amd.Promise<any>
+  
+  /**
+   * includes these scripts. same as adding script tags to a page.
+   * @param {string[]} the ids/paths of the modules.
+   * @returns {Promise<any>}
+   */
+  export function include(ids: string[]) :  amd.Promise<any>
 
   /**
    * rincludes these scripts. same as adding script tags to a page.
@@ -54,10 +70,13 @@ namespace amd {
   export function include(...args: any[]): amd.Promise<any> {
     return new amd.Promise<any>((resolve, reject) => {
       let param = amd.signature<{
-        ids: string[]
+        ids   : string[]
+        func  : (d:any) => void
       }> (args, [
-        {  pattern: ["string"], map: (args) => ({ ids : [args[0]] }) },
-        {  pattern: ["array",], map: (args) => ({ ids :  args[0]  }) }
+        {  pattern: ["string", "function"], map: (args) => ({ ids : [args[0]], func: args[1]  }) },
+        {  pattern: ["array",  "function"], map: (args) => ({ ids :  args[0] , func: args[1]  }) },
+        {  pattern: ["string"],             map: (args) => ({ ids : [args[0]], func: () => {} }) },
+        {  pattern: ["array"],              map: (args) => ({ ids :  args[0] , func: () => {} }) }
       ])
 
       /** normalize:  */
@@ -85,7 +104,9 @@ namespace amd {
               head.appendChild(script)
             } catch(error) {
               reject(error)
-            } resolve({})
+            } 
+            param.func({})
+            resolve({})
         })
       }).catch(reject)
     })
