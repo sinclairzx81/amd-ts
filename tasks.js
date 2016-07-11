@@ -23,6 +23,27 @@ const clean = () => tasks.series([
 ])
 
 //--------------------------------------------------
+// builds the AMD module bootstrappers.
+//--------------------------------------------------
+let amd_insert_bundle_string = `
+//--------------------------------------------
+// INSERT AMD BUNDLE HERE
+//--------------------------------------------
+`
+const build_bootstrap = () => tasks.series([
+  tasks.shell ("tsc ./boot/bootstrap.ts  --removeComments --outFile ./boot/bootstrap.js"),
+  tasks.concat("./boot/commonjs.js", ["./boot/bootstrap.js"]),
+  tasks.append("./boot/commonjs.js",   amd_insert_bundle_string),
+  tasks.append("./boot/commonjs.js", "\nmodule.exports = collect();"),
+  tasks.concat("./boot/standalone.js", []),
+  tasks.append("./boot/standalone.js", "\nvar modulename = (function() {\n"),
+  tasks.concat("./boot/standalone.js", ["./boot/standalone.js", "./boot/bootstrap.js"]),
+  tasks.append("./boot/standalone.js", amd_insert_bundle_string),
+  tasks.append("./boot/standalone.js", "\nreturn collect(); \n})()"),
+  tasks.drop  ("./boot/bootstrap.js")
+
+])
+//--------------------------------------------------
 // builds all projects.
 //--------------------------------------------------
 const build = () => tasks.series([
@@ -45,10 +66,11 @@ const watch = () => tasks.parallel([
 // mini cli.
 //--------------------------------------------------
 const cli = tasks.cli(process.argv, {
-  "install" : install(),
-  "clean"   : clean(),
-  "build"   : build(),
-  'watch'   : watch()
+  "install"         : install(),
+  "clean"           : clean(),
+  "build-bootstrap" : build_bootstrap(),
+  "build"           : build(),
+  'watch'           : watch()
 })
 
 cli.subscribe(event => {

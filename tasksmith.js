@@ -47,43 +47,6 @@ var define = function (id, dependencies, factory) {
     return definitions.push({ id: id, dependencies: dependencies, factory: factory });
 };
 
-define("common/signature", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var reflect = function (obj) {
-        if (typeof obj === "function")
-            return "function";
-        if (typeof obj === "string")
-            return "string";
-        if (typeof obj === "number")
-            return "number";
-        if (typeof obj === "boolean")
-            return "boolean";
-        if (typeof obj === "object") {
-            if (obj instanceof Array)
-                return "array";
-            if (obj instanceof Date)
-                return "date";
-        }
-        return "object";
-    };
-    var match = function (args, mapping) {
-        if (args.length !== mapping.pattern.length)
-            return false;
-        else
-            return mapping.pattern.every(function (type, index) {
-                return reflect(args[index]) === type;
-            });
-    };
-    exports.signature = function (args, mappings) {
-        var matches = mappings.filter(function (mapping) { return match(args, mapping); });
-        if (matches.length === 1)
-            return matches[0].map(args);
-        else if (matches.length > 1)
-            throw Error("signature: ambiguous arguments.");
-        else
-            throw Error("signature: no overload found for given arguments.");
-    };
-});
 define("common/promise", ["require", "exports"], function (require, exports) {
     "use strict";
     var Promise = (function () {
@@ -364,89 +327,6 @@ define("core/task", ["require", "exports", "common/promise"], function (require,
     }());
     exports.Task = Task;
 });
-define("core/script", ["require", "exports", "common/signature", "core/task"], function (require, exports, signature_1, task_1) {
-    "use strict";
-    function script() {
-        var args = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-            args[_i - 0] = arguments[_i];
-        }
-        var param = signature_1.signature(args, [
-            { pattern: ["string", "function"], map: function (args) { return ({ task: args[0], func: args[1] }); } },
-            { pattern: ["function"], map: function (args) { return ({ task: "core/script", func: args[0] }); } },
-        ]);
-        return new task_1.Task(param.task, param.func);
-    }
-    exports.script = script;
-});
-define("core/delay", ["require", "exports", "common/signature", "core/script"], function (require, exports, signature_2, script_1) {
-    "use strict";
-    function delay() {
-        var args = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-            args[_i - 0] = arguments[_i];
-        }
-        var param = signature_2.signature(args, [
-            { pattern: ["number"], map: function (args) { return ({ ms: args[0] }); } },
-        ]);
-        return script_1.script("core/delay", function (context) {
-            var handle = setTimeout(function () { return context.ok(); }, param.ms);
-            context.oncancel(function (reason) {
-                clearTimeout(handle);
-                context.fail(reason);
-            });
-        });
-    }
-    exports.delay = delay;
-});
-define("core/dowhile", ["require", "exports", "common/signature", "core/script"], function (require, exports, signature_3, script_2) {
-    "use strict";
-    function dowhile() {
-        var args = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-            args[_i - 0] = arguments[_i];
-        }
-        var param = signature_3.signature(args, [
-            { pattern: ["function", "function"], map: function (args) { return ({ condition: args[0], taskfunc: args[1] }); } },
-        ]);
-        return script_2.script("core/dowhile", function (context) {
-            var task = null;
-            var cancelled = false;
-            context.oncancel(function (reason) {
-                cancelled = true;
-                if (task !== null)
-                    task.cancel(reason);
-                context.fail(reason);
-            });
-            var next = function () {
-                if (cancelled === true)
-                    return;
-                task = param.taskfunc();
-                task.subscribe(function (event) { return context.emit(event); })
-                    .run()
-                    .then(function () { return param.condition(function (result) { return (result) ? next() : context.ok(); }); })
-                    .catch(function (error) { return context.fail(error); });
-            };
-            next();
-        });
-    }
-    exports.dowhile = dowhile;
-});
-define("core/fail", ["require", "exports", "common/signature", "core/script"], function (require, exports, signature_4, script_3) {
-    "use strict";
-    function fail() {
-        var args = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-            args[_i - 0] = arguments[_i];
-        }
-        var param = signature_4.signature(args, [
-            { pattern: ["string"], map: function (args) { return ({ message: args[0] }); } },
-            { pattern: [], map: function (args) { return ({ message: "" }); } },
-        ]);
-        return script_3.script("core/fail", function (context) { return context.fail(param.message); });
-    }
-    exports.fail = fail;
-});
 define("common/tabulate", ["require", "exports"], function (require, exports) {
     "use strict";
     var pad = function (length) {
@@ -548,17 +428,167 @@ define("core/format", ["require", "exports", "common/tabulate"], function (requi
     ]);
     exports.format = function (event) { return event_format(event).trim(); };
 });
-define("core/ifelse", ["require", "exports", "common/signature", "core/script"], function (require, exports, signature_5, script_4) {
+define("core/debug", ["require", "exports", "core/format"], function (require, exports, format_1) {
+    "use strict";
+    exports.debug = function (task) { return task.subscribe(function (event) { return console.log(format_1.format(event)); }).run(); };
+});
+define("common/signature", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var reflect = function (obj) {
+        if (typeof obj === "function")
+            return "function";
+        if (typeof obj === "string")
+            return "string";
+        if (typeof obj === "number")
+            return "number";
+        if (typeof obj === "boolean")
+            return "boolean";
+        if (typeof obj === "object") {
+            if (obj instanceof Array)
+                return "array";
+            if (obj instanceof Date)
+                return "date";
+        }
+        return "object";
+    };
+    var match = function (args, mapping) {
+        if (args.length !== mapping.pattern.length)
+            return false;
+        else
+            return mapping.pattern.every(function (type, index) {
+                return reflect(args[index]) === type;
+            });
+    };
+    exports.signature = function (args, mappings) {
+        var matches = mappings.filter(function (mapping) { return match(args, mapping); });
+        if (matches.length === 1)
+            return matches[0].map(args);
+        else if (matches.length > 1)
+            throw Error("signature: ambiguous arguments.");
+        else
+            throw Error("signature: no overload found for given arguments.");
+    };
+});
+define("core/script", ["require", "exports", "common/signature", "core/task"], function (require, exports, signature_1, task_1) {
+    "use strict";
+    function script() {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        var param = signature_1.signature(args, [
+            { pattern: ["string", "function"], map: function (args) { return ({ task: args[0], func: args[1] }); } },
+            { pattern: ["function"], map: function (args) { return ({ task: "core/script", func: args[0] }); } },
+        ]);
+        return new task_1.Task(param.task, param.func);
+    }
+    exports.script = script;
+});
+define("core/ok", ["require", "exports", "common/signature", "core/script"], function (require, exports, signature_2, script_1) {
+    "use strict";
+    function ok() {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        var param = signature_2.signature(args, [
+            { pattern: ["string"], map: function (args) { return ({ message: args[0] }); } },
+            { pattern: [], map: function (args) { return ({ message: null }); } },
+        ]);
+        return script_1.script("core/ok", function (context) { return context.ok(param.message || ""); });
+    }
+    exports.ok = ok;
+});
+define("core/delay", ["require", "exports", "common/signature", "core/script", "core/ok"], function (require, exports, signature_3, script_2, ok_1) {
+    "use strict";
+    function delay() {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        var param = signature_3.signature(args, [
+            { pattern: ["number", "function"], map: function (args) { return ({ ms: args[0], taskfunc: args[1] }); } },
+            { pattern: ["number"], map: function (args) { return ({ ms: args[0], taskfunc: function () { return ok_1.ok(); } }); } },
+        ]);
+        return script_2.script("core/delay", function (context) {
+            var cancelled = false;
+            var timeout = setTimeout(function () {
+                if (cancelled === true)
+                    return;
+                var task = param.taskfunc();
+                task.subscribe(function (event) { return context.emit(event); })
+                    .run()
+                    .then(function () { return context.ok(); })
+                    .catch(function (error) { return context.fail(error); });
+            }, param.ms);
+            context.oncancel(function (reason) {
+                cancelled = true;
+                clearTimeout(timeout);
+                context.fail(reason);
+            });
+        });
+    }
+    exports.delay = delay;
+});
+define("core/dowhile", ["require", "exports", "common/signature", "core/script"], function (require, exports, signature_4, script_3) {
+    "use strict";
+    function dowhile() {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        var param = signature_4.signature(args, [
+            { pattern: ["function", "function"], map: function (args) { return ({ condition: args[0], taskfunc: args[1] }); } },
+        ]);
+        return script_3.script("core/dowhile", function (context) {
+            var task = null;
+            var cancelled = false;
+            context.oncancel(function (reason) {
+                cancelled = true;
+                if (task !== null)
+                    task.cancel(reason);
+                context.fail(reason);
+            });
+            var next = function () {
+                if (cancelled === true)
+                    return;
+                task = param.taskfunc();
+                task.subscribe(function (event) { return context.emit(event); })
+                    .run()
+                    .then(function () { return param.condition(function (result) { return (result) ? next() : context.ok(); }); })
+                    .catch(function (error) { return context.fail(error); });
+            };
+            next();
+        });
+    }
+    exports.dowhile = dowhile;
+});
+define("core/fail", ["require", "exports", "common/signature", "core/script"], function (require, exports, signature_5, script_4) {
+    "use strict";
+    function fail() {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        var param = signature_5.signature(args, [
+            { pattern: ["string"], map: function (args) { return ({ message: args[0] }); } },
+            { pattern: [], map: function (args) { return ({ message: "" }); } },
+        ]);
+        return script_4.script("core/fail", function (context) { return context.fail(param.message); });
+    }
+    exports.fail = fail;
+});
+define("core/ifelse", ["require", "exports", "common/signature", "core/script"], function (require, exports, signature_6, script_5) {
     "use strict";
     function ifelse() {
         var args = [];
         for (var _i = 0; _i < arguments.length; _i++) {
             args[_i - 0] = arguments[_i];
         }
-        var param = signature_5.signature(args, [
+        var param = signature_6.signature(args, [
             { pattern: ["function", "function", "function"], map: function (args) { return ({ condition: args[0], left: args[1], right: args[2] }); } },
         ]);
-        return script_4.script("core/ifelse", function (context) {
+        return script_5.script("core/ifelse", function (context) {
             var task = null;
             var cancelled = false;
             context.oncancel(function (reason) {
@@ -580,17 +610,17 @@ define("core/ifelse", ["require", "exports", "common/signature", "core/script"],
     }
     exports.ifelse = ifelse;
 });
-define("core/ifthen", ["require", "exports", "common/signature", "core/script"], function (require, exports, signature_6, script_5) {
+define("core/ifthen", ["require", "exports", "common/signature", "core/script"], function (require, exports, signature_7, script_6) {
     "use strict";
     function ifthen() {
         var args = [];
         for (var _i = 0; _i < arguments.length; _i++) {
             args[_i - 0] = arguments[_i];
         }
-        var param = signature_6.signature(args, [
+        var param = signature_7.signature(args, [
             { pattern: ["function", "function"], map: function (args) { return ({ condition: args[0], taskfunc: args[1] }); } },
         ]);
-        return script_5.script("core/ifthen", function (context) {
+        return script_6.script("core/ifthen", function (context) {
             var task = null;
             var cancelled = false;
             context.oncancel(function (reason) {
@@ -615,21 +645,6 @@ define("core/ifthen", ["require", "exports", "common/signature", "core/script"],
         });
     }
     exports.ifthen = ifthen;
-});
-define("core/ok", ["require", "exports", "common/signature", "core/script"], function (require, exports, signature_7, script_6) {
-    "use strict";
-    function ok() {
-        var args = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-            args[_i - 0] = arguments[_i];
-        }
-        var param = signature_7.signature(args, [
-            { pattern: ["string"], map: function (args) { return ({ message: args[0] }); } },
-            { pattern: [], map: function (args) { return ({ message: null }); } },
-        ]);
-        return script_6.script("core/ok", function (context) { return context.ok(param.message || ""); });
-    }
-    exports.ok = ok;
 });
 define("core/parallel", ["require", "exports", "common/signature", "core/script"], function (require, exports, signature_8, script_7) {
     "use strict";
@@ -846,83 +861,12 @@ define("core/trycatch", ["require", "exports", "common/signature", "core/script"
     }
     exports.trycatch = trycatch;
 });
-define("node/append", ["require", "exports", "common/signature", "core/script", "fs"], function (require, exports, signature_14, script_13, fs) {
+define("node/util", ["require", "exports", "path", "fs"], function (require, exports, path, fs) {
     "use strict";
-    function append() {
-        var args = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-            args[_i - 0] = arguments[_i];
-        }
-        var param = signature_14.signature(args, [
-            { pattern: ["string", "string"], map: function (args) { return ({ target: args[0], content: args[1] }); } },
-        ]);
-        return script_13.script("node/append", function (context) {
-            try {
-                var content = [fs.readFileSync(param.target, "utf8"), param.content].join("\n");
-                fs.writeFileSync(param.target, content);
-                context.ok();
-            }
-            catch (error) {
-                context.fail(error.message);
-            }
-        });
-    }
-    exports.append = append;
-});
-define("node/cli", ["require", "exports", "core/script"], function (require, exports, script_14) {
-    "use strict";
-    exports.cli = function (argv, tasks) { return script_14.script("node/cli", function (context) {
-        var args = process.argv.reduce(function (acc, c, index) {
-            if (index > 1)
-                acc.push(c);
-            return acc;
-        }, []);
-        if (args.length !== 1 || tasks[args[0]] === undefined) {
-            context.log("tasks:");
-            Object.keys(tasks).forEach(function (key) { return context.log(" - ", key); });
-            context.ok();
-        }
-        else {
-            var task = tasks[args[0]];
-            context.log("running: [" + args[0] + "]");
-            task.subscribe(function (event) { return context.emit(event); })
-                .run()
-                .then(function (_) { return context.ok(); })
-                .catch(function (error) { return context.fail(error); });
-        }
-    }); };
-});
-define("node/concat", ["require", "exports", "common/signature", "core/script", "fs"], function (require, exports, signature_15, script_15, fs) {
-    "use strict";
-    function concat() {
-        var args = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-            args[_i - 0] = arguments[_i];
-        }
-        var param = signature_15.signature(args, [
-            { pattern: ["string", "array"], map: function (args) { return ({ outputFile: args[0], sources: args[1] }); } },
-        ]);
-        return script_15.script("node/concat", function (context) {
-            try {
-                var content = param.sources.map(function (file) { return fs.readFileSync(file, "utf8"); }).join("\n");
-                fs.writeFileSync(param.outputFile, content);
-                context.ok();
-            }
-            catch (error) {
-                context.fail(error.message);
-            }
-        });
-    }
-    exports.concat = concat;
-});
-define("node/fsutil", ["require", "exports", "path", "fs"], function (require, exports, path, fs) {
-    "use strict";
-    exports.message = function (context, args) {
-        return " - " + [context, args.join(" ")].join(": ");
-    };
-    exports.error = function (context, message, path) {
+    function error(context, message, path) {
         return new Error([context, message, path].join(": "));
-    };
+    }
+    exports.error = error;
     exports.meta = function (src) {
         var exists = fs.existsSync(src);
         var stat = exists && fs.statSync(src);
@@ -955,7 +899,7 @@ define("node/fsutil", ["require", "exports", "path", "fs"], function (require, e
         }
         else {
             return {
-                type: "empty",
+                type: "not-found",
                 basename: path.basename(src),
                 dirname: path.dirname(src),
                 relname: path.normalize('./'),
@@ -963,11 +907,11 @@ define("node/fsutil", ["require", "exports", "path", "fs"], function (require, e
             };
         }
     };
-    exports.tree = function (src) {
+    function tree(src) {
         var src_info = exports.meta(src);
         switch (src_info.type) {
-            case "invalid": throw exports.error("util: tree", "src path is invalid.", src);
-            case "empty": throw exports.error("util: tree", "src exist doesn't exist.", src);
+            case "invalid": throw error("util: tree", "src path is invalid.", src);
+            case "not-found": throw error("util: tree", "src exist doesn't exist.", src);
             case "directory": break;
             case "file": break;
         }
@@ -976,7 +920,7 @@ define("node/fsutil", ["require", "exports", "path", "fs"], function (require, e
             var info = exports.meta(src);
             switch (info.type) {
                 case "invalid": break;
-                case "empty": break;
+                case "not-found": break;
                 case "file":
                     info.relname = rel;
                     buffer.push(info);
@@ -993,48 +937,233 @@ define("node/fsutil", ["require", "exports", "path", "fs"], function (require, e
         };
         seek(src, path.normalize("./"));
         return buffer;
-    };
-    exports.build_directory = function (directory) {
+    }
+    exports.tree = tree;
+    function build_directory(directory, log) {
+        log = log || function (message) { };
         var info = exports.meta(directory);
         switch (info.type) {
             case "directory": break;
-            case "invalid": throw exports.error("util: build-directory", "directory path is invalid", directory);
-            case "file": throw exports.error("util: build-directory", "directory path points to a file.", directory);
-            case "empty":
+            case "invalid": throw error("build-directory", "directory path is invalid", directory);
+            case "file": throw error("build-directory", "directory path points to a file.", directory);
+            case "not-found":
                 var parent_1 = path.dirname(directory);
                 if (fs.existsSync(parent_1) === false)
-                    exports.build_directory(parent_1);
-                fs.mkdirSync(path.join(info.dirname, info.basename));
+                    build_directory(parent_1, log);
+                var target = path.join(info.dirname, info.basename);
+                log(["mkdir", target].join(" "));
+                fs.mkdirSync(target);
                 break;
         }
-    };
-    exports.copy_file = function (src, dst) {
-        var src_info = exports.meta(src);
-        var dst_info = exports.meta(dst);
-        switch (src_info.type) {
-            case "empty": throw exports.error("util: copy-file", "src file path doesn't exist.", src);
-            case "invalid": throw exports.error("util: copy-file", "src file path is invalid.", src);
-            case "directory": throw exports.error("util: copy-file", "attempted to link a directory", src);
+    }
+    exports.build_directory = build_directory;
+    function copy_file(src, dst, log) {
+        log = log || function (message) { };
+        var meta_src = exports.meta(src);
+        var meta_dst = exports.meta(dst);
+        switch (meta_src.type) {
+            case "invalid": throw error("copy-file", "src file path is invalid.", src);
+            case "not-found": throw error("copy-file", "src file path doesn't exist.", src);
+            case "directory": throw error("copy-file", "attempted to link a directory", src);
             case "file": break;
         }
-        switch (dst_info.type) {
-            case "directory": throw exports.error("util: copy-file", "dst file path found directory named the same.", dst);
-            case "invalid": throw exports.error("util: copy-file", "dst file path is invalid.", dst);
-            case "empty":
+        switch (meta_dst.type) {
+            case "directory": throw error("copy-file", "dst file path found directory named the same.", dst);
+            case "invalid": throw error("copy-file", "dst file path is invalid.", dst);
+            case "not-found":
             case "file":
-                exports.build_directory(dst_info.dirname);
-                var source = path.join(src_info.dirname, src_info.basename);
-                var target = path.join(dst_info.dirname, dst_info.basename);
+                build_directory(meta_dst.dirname, log);
+                var source = path.join(meta_src.dirname, meta_src.basename);
+                var target = path.join(meta_dst.dirname, meta_dst.basename);
                 if (source !== target) {
-                    if (dst_info.type === "file")
+                    if (meta_dst.type === "file") {
+                        log(["unlink", target].join(" "));
                         fs.unlinkSync(target);
+                    }
+                    log(["copy", source, target].join(" "));
                     fs.linkSync(source, target);
                 }
                 break;
         }
-    };
+    }
+    exports.copy_file = copy_file;
+    function copy(src, directory, log) {
+        log = log || function (message) { };
+        var meta_src = exports.meta(src);
+        var meta_dst = exports.meta(directory);
+        switch (meta_src.type) {
+            case "invalid": throw error("copy", "the source file or directory path is invalid", src);
+            case "not-found": throw error("copy", "the source file or directory path not found.", src);
+        }
+        switch (meta_dst.type) {
+            case "invalid": throw error("copy", "the destination directory path is invalid", directory);
+            case "file": throw error("copy", "the destination directory path points to a file", directory);
+            case "not-found":
+                build_directory(directory, log);
+                break;
+            case "directory": break;
+        }
+        var manifest = tree(src);
+        manifest.forEach(function (meta_src) {
+            switch (meta_src.type) {
+                case "invalid": throw error("copy", "invalid file or directory path.", src);
+                case "nor-found": throw error("copy", "file or directory path not found.", src);
+                case "directory":
+                    var directory_1 = path.join(meta_dst.dirname, meta_dst.basename, meta_src.relname);
+                    build_directory(directory_1, log);
+                    break;
+                case "file":
+                    var source = path.join(meta_src.dirname, meta_src.basename);
+                    var target = path.join(meta_dst.dirname, meta_dst.basename, meta_src.relname, meta_src.basename);
+                    copy_file(source, target, log);
+                    break;
+            }
+        });
+    }
+    exports.copy = copy;
+    function drop(target, log) {
+        log = log || function (message) { };
+        var meta_dst = exports.meta(target);
+        switch (meta_dst.type) {
+            case "invalid": throw error("drop", "invalid file or directory path", target);
+            case "empty": return;
+            case "file": break;
+            case "directory": break;
+        }
+        var manifest = tree(target);
+        manifest.reverse();
+        manifest.forEach(function (src_info) {
+            switch (src_info.type) {
+                case "empty": break;
+                case "invalid": break;
+                case "directory":
+                    var directory = path.join(src_info.dirname, src_info.basename);
+                    log(["rmdir", directory].join(" "));
+                    fs.rmdirSync(directory);
+                    break;
+                case "file":
+                    var filename = path.join(src_info.dirname, src_info.basename);
+                    log(["unlink", filename].join(" "));
+                    fs.unlinkSync(filename);
+            }
+        });
+    }
+    exports.drop = drop;
+    function append(target, content, log) {
+        log = log || function (message) { };
+        var meta_dst = exports.meta(target);
+        switch (meta_dst.type) {
+            case "invalid": throw error("append", "the given path is invalid", target);
+            case "directory": throw error("append", "the given path points to a directory", target);
+            case "not-found":
+                {
+                    build_directory(meta_dst.dirname, log);
+                    var filename = path.join(meta_dst.dirname, meta_dst.basename);
+                    log(["write", filename].join(" "));
+                    fs.writeFileSync(filename, content);
+                }
+                break;
+            case "file":
+                {
+                    var filename = path.join(meta_dst.dirname, meta_dst.basename);
+                    log(["append", filename].join(" "));
+                    fs.appendFileSync(filename, content);
+                }
+                break;
+        }
+    }
+    exports.append = append;
+    function concat(target, sources, log) {
+        log = log || function (message) { };
+        var meta_dst = exports.meta(target);
+        switch (meta_dst.type) {
+            case "invalid": throw error("concat", "the given path is invalid", target);
+            case "directory": throw error("concat", "the given path points to a directory", target);
+            case "not-found": break;
+            case "file": break;
+        }
+        build_directory(meta_dst.dirname, log);
+        var content = sources
+            .map(function (filename) { return path.resolve(filename); })
+            .map(function (filename) { return fs.readFileSync(filename, "utf8"); })
+            .join("\n");
+        var filename = path.join(meta_dst.dirname, meta_dst.basename);
+        log(["concat", filename].join(" "));
+        fs.writeFileSync(filename, content);
+    }
+    exports.concat = concat;
 });
-define("node/copy", ["require", "exports", "common/signature", "core/script", "node/fsutil", "path"], function (require, exports, signature_16, script_16, fsutil, path) {
+define("node/append", ["require", "exports", "common/signature", "core/script", "node/util", "path"], function (require, exports, signature_14, script_13, util, path) {
+    "use strict";
+    function append() {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        var param = signature_14.signature(args, [
+            { pattern: ["string", "string"], map: function (args) { return ({ target: args[0], content: args[1] }); } },
+        ]);
+        return script_13.script("node/append", function (context) {
+            try {
+                var target = path.resolve(param.target);
+                util.append(target, param.content, function (message) { return context.log(message); });
+                context.ok();
+            }
+            catch (error) {
+                context.fail(error.message);
+            }
+        });
+    }
+    exports.append = append;
+});
+define("node/cli", ["require", "exports", "core/script"], function (require, exports, script_14) {
+    "use strict";
+    exports.cli = function (argv, tasks) { return script_14.script("node/cli", function (context) {
+        var args = process.argv.reduce(function (acc, c, index) {
+            if (index > 1)
+                acc.push(c);
+            return acc;
+        }, []);
+        if (args.length !== 1 || tasks[args[0]] === undefined) {
+            context.log("tasks:");
+            Object.keys(tasks).forEach(function (key) { return context.log(" - ", key); });
+            context.ok();
+        }
+        else {
+            var task = tasks[args[0]];
+            context.log("running: [" + args[0] + "]");
+            task.subscribe(function (event) { return context.emit(event); })
+                .run()
+                .then(function (_) { return context.ok(); })
+                .catch(function (error) { return context.fail(error); });
+        }
+    }); };
+});
+define("node/concat", ["require", "exports", "common/signature", "core/script", "node/util", "path"], function (require, exports, signature_15, script_15, util, path) {
+    "use strict";
+    function concat() {
+        var args = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            args[_i - 0] = arguments[_i];
+        }
+        var param = signature_15.signature(args, [
+            { pattern: ["string", "array"], map: function (args) { return ({ output: args[0], sources: args[1] }); } },
+        ]);
+        return script_15.script("node/concat", function (context) {
+            try {
+                var output = path.resolve(param.output);
+                var sources = param.sources.map(function (source) { return path.resolve(source); });
+                util.concat(output, sources, function (message) { return context.log(message); });
+                context.ok();
+            }
+            catch (error) {
+                context.fail(error.message);
+            }
+        });
+    }
+    exports.concat = concat;
+});
+define("node/copy", ["require", "exports", "common/signature", "core/script", "node/util", "path"], function (require, exports, signature_16, script_16, util, path) {
     "use strict";
     function copy() {
         var args = [];
@@ -1042,31 +1171,13 @@ define("node/copy", ["require", "exports", "common/signature", "core/script", "n
             args[_i - 0] = arguments[_i];
         }
         var param = signature_16.signature(args, [
-            { pattern: ["string", "string"], map: function (args) { return ({ source_file_or_directory: args[0], target_directory: args[1] }); } },
+            { pattern: ["string", "string"], map: function (args) { return ({ source: args[0], target: args[1] }); } },
         ]);
         return script_16.script("node/copy", function (context) {
             try {
-                var src_1 = path.resolve(param.source_file_or_directory);
-                var dst = path.resolve(param.target_directory);
-                var dst_info_1 = fsutil.meta(dst);
-                var gather = fsutil.tree(src_1);
-                gather.forEach(function (src_info) {
-                    switch (src_info.type) {
-                        case "invalid": throw fsutil.error("copy", "invalid file or directory src path.", src_1);
-                        case "empty": throw fsutil.error("copy", "no file or directory exists at the given src.", src_1);
-                        case "directory":
-                            var directory = path.join(dst_info_1.dirname, dst_info_1.basename, src_info.relname);
-                            context.log(fsutil.message("mkdir", [directory]));
-                            fsutil.build_directory(directory);
-                            break;
-                        case "file":
-                            var source = path.join(src_info.dirname, src_info.basename);
-                            var target = path.join(dst_info_1.dirname, dst_info_1.basename, src_info.relname, src_info.basename);
-                            context.log(fsutil.message("copy", [source, target]));
-                            fsutil.copy_file(source, target);
-                            break;
-                    }
-                });
+                var source = path.resolve(param.source);
+                var target = path.resolve(param.target);
+                util.copy(source, target, function (message) { return context.log(message); });
                 context.ok();
             }
             catch (error) {
@@ -1076,7 +1187,7 @@ define("node/copy", ["require", "exports", "common/signature", "core/script", "n
     }
     exports.copy = copy;
 });
-define("node/drop", ["require", "exports", "common/signature", "core/script", "node/fsutil", "path", "fs"], function (require, exports, signature_17, script_17, fsutil, path, fs) {
+define("node/drop", ["require", "exports", "common/signature", "core/script", "node/util", "path"], function (require, exports, signature_17, script_17, util, path) {
     "use strict";
     function drop() {
         var args = [];
@@ -1084,29 +1195,12 @@ define("node/drop", ["require", "exports", "common/signature", "core/script", "n
             args[_i - 0] = arguments[_i];
         }
         var param = signature_17.signature(args, [
-            { pattern: ["string"], map: function (args) { return ({ drop_file_or_directory: args[0] }); } },
+            { pattern: ["string"], map: function (args) { return ({ target: args[0] }); } },
         ]);
         return script_17.script("node/drop", function (context) {
             try {
-                var src = path.resolve(param.drop_file_or_directory);
-                var dst_info = fsutil.meta(src);
-                var gather = fsutil.tree(src);
-                gather.reverse();
-                gather.forEach(function (src_info) {
-                    switch (src_info.type) {
-                        case "empty": break;
-                        case "invalid": break;
-                        case "directory":
-                            var directory = path.join(src_info.dirname, src_info.basename);
-                            context.log(fsutil.message("drop", [directory]));
-                            fs.rmdirSync(directory);
-                            break;
-                        case "file":
-                            var filename = path.join(src_info.dirname, src_info.basename);
-                            context.log(fsutil.message("drop", [filename]));
-                            fs.unlinkSync(filename);
-                    }
-                });
+                var target = path.resolve(param.target);
+                util.drop(target, function (message) { return context.log(message); });
                 context.ok();
             }
             catch (error) {
@@ -1118,7 +1212,7 @@ define("node/drop", ["require", "exports", "common/signature", "core/script", "n
 });
 define("node/serve", ["require", "exports", "common/signature", "core/script", "http", "fs", "path", "url"], function (require, exports, signature_18, script_18, http, fs, path, url) {
     "use strict";
-    var signals_client_script = function () { return "\n<!-- BEGIN: SIGNALS -->\n<script type=\"text/javascript\">\nwindow.addEventListener(\"load\", function() {\n  function connect(handler) {\n    var xhr = new XMLHttpRequest();\n    var idx = 0;\n    xhr.addEventListener(\"readystatechange\", function(event) {\n      switch(xhr.readyState) {\n        case 4: handler(\"disconnect\"); break;\n        case 3:\n          var signal = xhr.response.substr(idx);\n          idx += signal.length;\n          handler(signal);\n          break;\n      }\n    });\n    xhr.open(\"GET\", \"/__signals\", true); \n    xhr.send();\n  }\n  function handler(signal) {\n    switch(signal) {\n      case \"established\": console.log(\"signals: established\");  break;\n      case \"reload\":      window.location.reload();  break;    \n      case \"disconnect\":\n        console.log(\"signals: disconnected\");\n        setTimeout(function() {\n          console.log(\"signals: reconnecting...\");\n          connect(handler)\n        }, 1000) \n        break;\n    }\n  }\n  connect(handler)\n})\n</script>\n<!-- END: SIGNALS -->\n"; };
+    var signals_client_script = function () { return "\n<script type=\"text/javascript\">\n\nwindow.addEventListener(\"load\", function() {\n  //---------------------------------\n  // tasksmith: signals\n  //---------------------------------\n  function connect(handler) {\n    var xhr = new XMLHttpRequest();\n    var idx = 0;\n    xhr.addEventListener(\"readystatechange\", function(event) {\n      switch(xhr.readyState) {\n        case 4: handler(\"disconnect\"); break;\n        case 3:\n          var signal = xhr.response.substr(idx);\n          idx += signal.length;\n          handler(signal);\n          break;\n      }\n    });\n    xhr.open(\"GET\", \"/__signals\", true); \n    xhr.send();\n  }\n  function handler(signal) {\n    switch(signal) {\n      case \"established\": console.log(\"signals: established\");  break;\n      case \"reload\"     : window.location.reload(); break;\n      case \"ping\"       : break;    \n      case \"disconnect\":\n        console.log(\"signals: disconnected\");\n        setTimeout(function() {\n          console.log(\"signals: reconnecting...\");\n          connect(handler)\n        }, 1000) \n        break;\n    }\n  }\n  connect(handler)\n})\n</script>\n"; };
     var inject_signals_script = function (content) {
         var inject_index = content.length;
         var watch_prefix = content.slice(0, inject_index);
@@ -1145,20 +1239,18 @@ define("node/serve", ["require", "exports", "common/signature", "core/script", "
             var clients = [];
             var listening = false;
             var cancelled = false;
+            var waiting = true;
             var server = null;
             var watcher = null;
             if (param.watch === true) {
-                var waiting_1 = true;
                 watcher = fs.watch(param.directory, { recursive: true }, function (event, filename) {
                     if (cancelled === true)
                         return;
-                    if (waiting_1 === true) {
-                        waiting_1 = false;
+                    if (waiting === true) {
+                        waiting = false;
                         setTimeout(function () {
                             clients.forEach(function (client) { return client("reload"); });
-                            setTimeout(function () {
-                                waiting_1 = true;
-                            }, 100);
+                            setTimeout(function () { return waiting = true; }, 100);
                         }, param.delay);
                     }
                 });
@@ -1177,10 +1269,14 @@ define("node/serve", ["require", "exports", "common/signature", "core/script", "
                                 response.write(signal);
                             };
                             clients.push(client_1);
+                            var keep_alive_1 = setInterval(function () {
+                                response.write("ping");
+                            }, 15000);
                             var request_ = request;
                             request_.connection.on("end", function () {
-                                context.log("SIG: client disconnected");
+                                clearInterval(keep_alive_1);
                                 clients = clients.splice(clients.indexOf(client_1), 1);
+                                context.log("SIG: client disconnected");
                             });
                         }
                         break;
@@ -1330,17 +1426,23 @@ define("node/watch", ["require", "exports", "common/signature", "core/script", "
             args[_i - 0] = arguments[_i];
         }
         var param = signature_20.signature(args, [
-            { pattern: ["string", "number", "boolean", "function"], map: function (args) { return ({ path: args[0], delay: args[1], immediate: args[2], taskfunc: args[3] }); } },
-            { pattern: ["string", "number", "function"], map: function (args) { return ({ path: args[0], delay: args[1], immediate: true, taskfunc: args[2] }); } },
-            { pattern: ["string", "function"], map: function (args) { return ({ path: args[0], delay: 1000, immediate: true, taskfunc: args[1] }); } }
+            { pattern: ["array", "number", "boolean", "function"], map: function (args) { return ({ paths: args[0], delay: args[1], immediate: args[2], taskfunc: args[3] }); } },
+            { pattern: ["array", "number", "function"], map: function (args) { return ({ paths: args[0], delay: args[1], immediate: true, taskfunc: args[2] }); } },
+            { pattern: ["array", "function"], map: function (args) { return ({ paths: args[0], delay: 1000, immediate: true, taskfunc: args[1] }); } },
+            { pattern: ["string", "number", "boolean", "function"], map: function (args) { return ({ paths: [args[0]], delay: args[1], immediate: args[2], taskfunc: args[3] }); } },
+            { pattern: ["string", "number", "function"], map: function (args) { return ({ paths: [args[0]], delay: args[1], immediate: true, taskfunc: args[2] }); } },
+            { pattern: ["string", "function"], map: function (args) { return ({ paths: [args[0]], delay: 1000, immediate: true, taskfunc: args[1] }); } }
         ]);
         return script_20.script("node/watch", function (context) {
-            var waiting = true;
             var task = null;
+            var watchers = null;
+            var waiting = true;
             var completed = false;
             var cancelled = false;
             context.oncancel(function (reason) {
                 cancelled = true;
+                if (watchers !== null)
+                    watchers.forEach(function (watcher) { return watcher.close(); });
                 if (task !== null)
                     task.cancel(reason);
                 context.fail(reason);
@@ -1349,11 +1451,11 @@ define("node/watch", ["require", "exports", "common/signature", "core/script", "
                 if (cancelled === true)
                     return;
                 if (waiting === true) {
-                    context.log("change detected.");
+                    context.log("watch change detected.");
                     waiting = false;
                     setTimeout(function () { waiting = true; }, param.delay);
                     if (task !== null && completed === false) {
-                        task.cancel("restarting.");
+                        task.cancel("watch cancelled task.");
                     }
                     completed = false;
                     task = param.taskfunc();
@@ -1365,20 +1467,21 @@ define("node/watch", ["require", "exports", "common/signature", "core/script", "
             };
             if (param.immediate === true)
                 next();
-            fs.watch(param.path, { recursive: true }, function (event, filename) { return next(); });
+            watchers = param.paths.map(function (path) { return fs.watch(path, { recursive: true }, function (event, filename) { return next(); }); });
         });
     }
     exports.watch = watch;
 });
-define("tasksmith-node", ["require", "exports", "core/delay", "core/dowhile", "core/fail", "core/format", "core/ifelse", "core/ifthen", "core/ok", "core/parallel", "core/repeat", "core/retry", "core/script", "core/series", "core/task", "core/timeout", "core/trycatch", "node/append", "node/cli", "node/concat", "node/copy", "node/drop", "node/serve", "node/shell", "node/watch"], function (require, exports, delay_1, dowhile_1, fail_1, format_1, ifelse_1, ifthen_1, ok_1, parallel_1, repeat_1, retry_1, script_21, series_1, task_2, timeout_1, trycatch_1, append_1, cli_1, concat_1, copy_1, drop_1, serve_1, shell_1, watch_1) {
+define("tasksmith-node", ["require", "exports", "core/debug", "core/delay", "core/dowhile", "core/fail", "core/format", "core/ifelse", "core/ifthen", "core/ok", "core/parallel", "core/repeat", "core/retry", "core/script", "core/series", "core/task", "core/timeout", "core/trycatch", "node/append", "node/cli", "node/concat", "node/copy", "node/drop", "node/serve", "node/shell", "node/watch"], function (require, exports, debug_1, delay_1, dowhile_1, fail_1, format_2, ifelse_1, ifthen_1, ok_2, parallel_1, repeat_1, retry_1, script_21, series_1, task_2, timeout_1, trycatch_1, append_1, cli_1, concat_1, copy_1, drop_1, serve_1, shell_1, watch_1) {
     "use strict";
+    exports.debug = debug_1.debug;
     exports.delay = delay_1.delay;
     exports.dowhile = dowhile_1.dowhile;
     exports.fail = fail_1.fail;
-    exports.format = format_1.format;
+    exports.format = format_2.format;
     exports.ifelse = ifelse_1.ifelse;
     exports.ifthen = ifthen_1.ifthen;
-    exports.ok = ok_1.ok;
+    exports.ok = ok_2.ok;
     exports.parallel = parallel_1.parallel;
     exports.repeat = repeat_1.repeat;
     exports.retry = retry_1.retry;
