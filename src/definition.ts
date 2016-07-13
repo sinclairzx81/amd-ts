@@ -27,8 +27,9 @@ THE SOFTWARE.
 ---------------------------------------------------------------------------*/
 
 namespace amd {
+  
   /**
-   * Definition
+   * Definition:
    * 
    * This libraries definition of a module. Definitions
    * are given from searches, and used during resolution

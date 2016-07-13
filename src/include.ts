@@ -79,13 +79,34 @@ namespace amd {
         {  pattern: ["array"],              map: (args) => ({ ids :  args[0] , func: () => {} }) }
       ])
 
-      /** normalize:  */
-      let paths = param.ids.map(id => (id.indexOf(".js") === -1) ? id + ".js" : id)
+      // remap and normalize paths.
+      //
+      // The caller may have added custom path overrides,
+      // these need to be converted into their respective
+      // full paths prior to searching. 
+      //
+      // in addition, we check that the paths given by the 
+      // caller contain .js, if not, postfix the path with 
+      // js. From the callers point of view, passing or not
+      // passing the extention with including script is
+      // optional.
+      let paths = param.ids.map(id => amd.path.resolve(id))
+                           .map(id => (id.indexOf(".js") === -1) ? id + ".js" : id)
 
-      /** requests: */
+      /** 
+       * map to http requests:
+       * 
+       * for each path, convert it to a http request.
+       */
       let requests = paths.map(path => amd.http.get(path))
-
-      /** fetch: */
+      
+      /**
+       * gather:
+       * 
+       * next, we load each request in parallel. The 
+       * results of each request will be mapped into
+       * dom elements.
+       */
       Promise.all(requests).then(responses => {
         /**
          * inject:
@@ -104,7 +125,7 @@ namespace amd {
               head.appendChild(script)
             } catch(error) {
               reject(error)
-            } 
+            }
             param.func({})
             resolve({})
         })

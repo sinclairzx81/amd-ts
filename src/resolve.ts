@@ -26,7 +26,7 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
-/// <reference path="definition.ts" />
+/// <reference path="./definition.ts" />
 
 namespace amd {
 

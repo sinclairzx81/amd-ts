@@ -1,13 +1,20 @@
 
 <html>
   <style type="text/css">
-    * {
-      font-family: Consolas;
-    }
+    * { font-family: Consolas;  }
+    #container { width: 100%; height: 100%; }
+    #header    { width: 100%; height: 60px; }
+    #left      { width: 20%; height: calc(100% - 60px); float: left;}
+    #right     { width: 80%;  height: calc(100% - 60px); float: left;}
+    #log       { width: 100%; height: 100%; background: #333; color: #FFF; overflow: auto;}
   </style>
   <script type="text/javascript" src="./amd/amd.js"></script>
   <script type="text/javascript">
     
+
+    //-----------------------------------------
+    // console.
+    //-----------------------------------------
     var log = function(message) {
       console.log(message)
       if(message !== undefined || message !== null) {
@@ -15,111 +22,152 @@
         pre.innerHTML += (message + "\n")
       }
     }
-
     var clearall = function() {
       console.clear()
       let pre = document.getElementById("log")
       pre.innerHTML = ""
     }
-
-    var require_ts_bundle = function() {
-      log("------------------")
-      log("require: ts bundle")
-      log("------------------")
-      amd.require("bin/bundle/app", function(bundle) {
+    //-----------------------------------------
+    // tests.
+    //-----------------------------------------
+    var tests =  {
+      require_ts_bundle:function() {
+        clearall()
         log("------------------")
-        log("testing: ts bundle")
+        log("require: ts bundle")
         log("------------------")
-        bundle.test()
+        amd.require("./bin/bundle/app", function(bundle) {
+          log("------------------")
+          log("testing: ts bundle")
+          log("------------------")
+          bundle.test()
+        })
+      },
+      require_ts_standard: function() {
+        clearall()
+        log("------------------")
+        log("require: ts standard")
+        log("------------------")
+        amd.require("./bin/standard/app", function(standard) {
+          log("------------------")
+          log("testing: ts standard")
+          log("------------------")
+          standard.test()
+        })
+      },
+      require_ts_bundle_mapped:function() {
+        clearall()
+        amd.path.map("bundle", "./bin/bundle/")
+        log("------------------")
+        log("require: ts bundle mapped")
+        log("------------------")
+        amd.require("bundle/app", function(bundle) {
+          log("------------------")
+          log("testing: ts bundle mapped")
+          log("------------------")
+          bundle.test()
+        })
+      },
+      require_ts_standard_mapped: function() {
+        clearall()
+        amd.path.map("standard", "./bin/standard/")
+        log("------------------")
+        log("require: ts standard mapped")
+        log("------------------")
+        amd.require("standard/app", function(standard) {
+          log("------------------")
+          log("testing: ts standard mapped")
+          log("------------------")
+          standard.test()
+        })
+      },
+      require_standard_and_bundle: function() {
+        clearall()
+        log("------------------")
+        log("require: standard and bundle ")
+        log("------------------")
+        amd.require(["./bin/standard/app", "./bin/bundle/app"], function(standard, bundle) {
+          log("------------------")
+          log("testing standard")
+          log("------------------")
+          standard.test ()
+          log("------------------")
+          log("testing bundle")
+          log("------------------")
+          bundle.test()
+        })
+      },
+      require_amd_exports_on_return: function() {
+        clearall()
+        log("------------------")
+        log("require: amd exports on return.")
+        log("------------------")
+        amd.require("supports/exports_on_return", function(amd) {
+          log("------------------")
+          log("testing:  amd exports on return.")
+          log("------------------")
+          amd.test()
+        })
+      },
+      require_syntax_error: function() {
+        clearall()
+        log("------------------")
+        log("require: error - syntax")
+        log("------------------")
+        amd.require("./supports/error_syntax", function(mod) {
+          log(mod)
+        }).catch(function(error) { log(error) })
+      },
+      require_no_module: function() {
+        clearall()
+        log("------------------")
+        log("require: errors - no module")
+        log("------------------")
+        amd.require("./supports/error_no_module", function(mod) {
+          log(mod)
+        }).catch(function(error) { log(error) })
+      },
+      require_nested: function() {
+        clearall()
+        log("------------------")
+        log("require: nested")
+        log("------------------")
+        amd.require("./supports/nested_require", function(mod) {
+          log(mod)
+        }).catch(function(error) { log(error) })
+      },
+      include_script: function() {
+        clearall()
+        log("------------------")
+        log("include: script")
+        log("------------------")
+        amd.include("./supports/include").then(function() {
+          log(INJECTED_VALUE)
+        })
+      }
+    }
+    //-----------------------------------------
+    // tests.
+    //-----------------------------------------
+    amd.ready().then(function() {
+      let element = document.querySelector("#tests")
+      Object.keys(tests).forEach(function(test) {
+        element.innerHTML += '<input type="button" value="'+test+'" onclick="tests.'+test+'()" /><br />'
       })
-    }
-
-    var require_ts_normal = function() {
-      log("------------------")
-      log("require: ts standard")
-      log("------------------")
-      amd.require("bin/standard/app", function(standard) {
-        log("------------------")
-        log("testing: ts standard")
-        log("------------------")
-        standard.test()
-      })
-    }
-    
-    var require_standard_and_bundle = function() {
-      log("------------------")
-      log("require: standard and bundle ")
-      log("------------------")
-      amd.require(["bin/standard/app", "bin/bundle/app"], function(standard, bundle) {
-        log("------------------")
-        log("testing standard")
-        log("------------------")
-        standard.test ()
-        log("------------------")
-        log("testing bundle")
-        log("------------------")
-        bundle.test()
-      })
-    }
-
-    var require_amd_exports_on_return = function() {
-      log("------------------")
-      log("require: amd exports on return.")
-      log("------------------")
-      amd.require("supports/exports_on_return", function(amd) {
-        log("------------------")
-        log("testing:  amd exports on return.")
-        log("------------------")
-        amd.test()
-      })
-    }
-    var require_syntax_error = function() {
-      log("------------------")
-      log("require: error - syntax")
-      log("------------------")
-      amd.require("./supports/error_syntax", function(mod) {
-        log(mod)
-      }).catch(function(error) { log(error) })
-    }
-
-    var require_no_module = function() {
-      log("------------------")
-      log("require: errors - no module")
-      log("------------------")
-      amd.require("./supports/error_no_module", function(mod) {
-        log(mod)
-      }).catch(function(error) { log(error) })
-    }
-
-    var require_nested = function() {
-      log("------------------")
-      log("require: nested")
-      log("------------------")
-      amd.require("./supports/nested_require", function(mod) {
-        log(mod)
-      }).catch(function(error) { log(error) })
-    }
-    var include_script = function() {
-      log("------------------")
-      log("include: script")
-      log("------------------")
-      amd.include("./supports/include").then(function() {
-        log(INJECTED_VALUE)
-      })
-    }
+    })
     
   </script>
   <body>
-      <h3>output in console - expect identical output for normalized and bundled.</h3>
-      <input type="button" value="clear"                         onclick="clearall()" />
-      <input type="button" value="require typescript standard"   onclick="require_ts_normal()" />
-      <input type="button" value="require typescript bundle"     onclick="require_ts_bundle()" />
-      <input type="button" value="require standard and bundle"   onclick="require_standard_and_bundle()" />
-      <input type="button" value="require amd exports on return" onclick="require_amd_exports_on_return()" />
-      <input type="button" value="include script"                onclick="include_script()" />
-      <input type="button" value="require syntax error"          onclick="require_syntax_error()" />
-      <input type="button" value="require nested"                onclick="require_nested()" />
-      <input type="button" value="require no module"             onclick="require_no_module()" />
-      <pre id="log"></pre>
+      <div id="container">
+          <div id="header">
+            <h3>amd test console</h3>
+          </div>
+          <div id="left">
+            <div id="tests"></div>
+          </div>
+          <div id="right">
+            <pre id="log"></pre>
+          </div>
+      </div>
   </body>
 </html>

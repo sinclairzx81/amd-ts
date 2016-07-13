@@ -74,6 +74,13 @@ namespace amd {
       // just resolve immediate.
       amd.ready().then(() => {
 
+        // remap paths: 
+        //
+        // The caller may have added custom path overrides,
+        // these need to be converted into their respective
+        // full paths prior to searching. so do so.
+        param.ids = param.ids.map(id => amd.path.resolve(id))
+
         // searches: 
         //
         // construct searches from the given ids.
@@ -123,7 +130,7 @@ namespace amd {
               // definition due to the 'last module rule' 
               // below.
               definitions.unshift({
-                id           : "require", 
+                id           : "require",
                 dependencies : [], 
                 factory      : () => amd.require 
               })
@@ -138,6 +145,7 @@ namespace amd {
               try { return amd.resolve(id, definitions, {}) } 
               catch(error) { reject(error) }
             })
+
             param.callback.apply({}, output)
             resolve(output)
         }).catch(reject)

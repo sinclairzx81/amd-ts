@@ -26,7 +26,7 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
-/// <reference path="promise.ts" />
+/// <reference path="./promise.ts" />
 
 namespace amd.http {
   
@@ -53,5 +53,4 @@ namespace amd.http {
     xhr.open("GET", url, true)
     xhr.send()
   })
-
 }

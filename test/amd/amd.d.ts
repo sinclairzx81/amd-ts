@@ -1,5 +1,13 @@
-declare namespace amd {
-    const spread: (arr: any[], func: (...args: any[]) => void) => void;
+declare namespace amd.path {
+    interface MappedPath {
+        path: string;
+        parts: string[];
+    }
+    function map(name: string, path: string): void;
+    function resolve(path: string): string;
+    function basename(path: string): string;
+    function dirname(path: string): string;
+    function relative(from: string, to: string): string;
 }
 declare namespace amd {
     interface Reject {
@@ -30,7 +38,7 @@ declare namespace amd {
     }
 }
 declare namespace amd {
-    function ready(callback?: (d: any) => void): amd.Promise<any>;
+    function ready(callback?: (d: any) => void): amd.Promise<{}>;
     function ready(): amd.Promise<any>;
 }
 declare namespace amd {
@@ -49,10 +57,6 @@ declare namespace amd {
     function include(ids: string[], func: () => void): amd.Promise<any>;
     function include(id: string): amd.Promise<any>;
     function include(ids: string[]): amd.Promise<any>;
-}
-declare namespace amd.path {
-    function basename(path: string): string;
-    function resolve(from: string, to: string): string;
 }
 declare namespace amd {
     interface Definition {

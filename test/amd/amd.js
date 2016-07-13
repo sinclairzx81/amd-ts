@@ -1,6 +1,57 @@
 var amd;
 (function (amd) {
-    amd.spread = function (arr, func) { return func.apply({}, arr); };
+    var path;
+    (function (path_1) {
+        var mappings = {};
+        function map(name, path) {
+            mappings[name] = { path: path, parts: path.split("/").filter(function (part) { return part.length !== 0; }) };
+        }
+        path_1.map = map;
+        function resolve(path) {
+            var split = path.split("/");
+            if (split.length === 0)
+                throw Error("amd.path: resolve: invalid path.");
+            Object.keys(mappings).forEach(function (name) {
+                if (name === split[0]) {
+                    split.shift();
+                    var rev = mappings[name].parts.map(function (n) { return n; });
+                    rev.reverse();
+                    rev.forEach(function (part) { return split.unshift(part); });
+                }
+            });
+            return split.join("/");
+        }
+        path_1.resolve = resolve;
+        function basename(path) {
+            var split = path.split('/');
+            return split[split.length - 1];
+        }
+        path_1.basename = basename;
+        function dirname(path) {
+            var split = path.split('/');
+            if (split.length > 0)
+                split.pop();
+            return split.join("/");
+        }
+        path_1.dirname = dirname;
+        function relative(from, to) {
+            if (to.indexOf("http") == 0)
+                return to;
+            var stack = from.split("/");
+            var parts = to.split("/");
+            stack.pop();
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i] == ".")
+                    continue;
+                if (parts[i] == "..")
+                    stack.pop();
+                else
+                    stack.push(parts[i]);
+            }
+            return stack.join("/");
+        }
+        path_1.relative = relative;
+    })(path = amd.path || (amd.path = {}));
 })(amd || (amd = {}));
 var amd;
 (function (amd) {
@@ -243,7 +294,8 @@ var amd;
                 { pattern: ["string"], map: function (args) { return ({ ids: [args[0]], func: function () { } }); } },
                 { pattern: ["array"], map: function (args) { return ({ ids: args[0], func: function () { } }); } }
             ]);
-            var paths = param.ids.map(function (id) { return (id.indexOf(".js") === -1) ? id + ".js" : id; });
+            var paths = param.ids.map(function (id) { return amd.path.resolve(id); })
+                .map(function (id) { return (id.indexOf(".js") === -1) ? id + ".js" : id; });
             var requests = paths.map(function (path) { return amd.http.get(path); });
             amd.Promise.all(requests).then(function (responses) {
                 responses.forEach(function (source, index) {
@@ -268,34 +320,6 @@ var amd;
 })(amd || (amd = {}));
 var amd;
 (function (amd) {
-    var path;
-    (function (path_1) {
-        function basename(path) {
-            var split = path.split('/');
-            return split[split.length - 1];
-        }
-        path_1.basename = basename;
-        function resolve(from, to) {
-            if (to.indexOf("http") == 0)
-                return to;
-            var stack = from.split("/");
-            var parts = to.split("/");
-            stack.pop();
-            for (var i = 0; i < parts.length; i++) {
-                if (parts[i] == ".")
-                    continue;
-                if (parts[i] == "..")
-                    stack.pop();
-                else
-                    stack.push(parts[i]);
-            }
-            return stack.join("/");
-        }
-        path_1.resolve = resolve;
-    })(path = amd.path || (amd.path = {}));
-})(amd || (amd = {}));
-var amd;
-(function (amd) {
     var extract = function (id, code) {
         var definitions = [];
         var define = function () {
@@ -314,7 +338,8 @@ var amd;
             ]));
         };
         define.amd = true;
-        eval("(function(define) { " + code + "\n })")(define);
+        var extractor = new Function("define", "" + code);
+        extractor(define);
         return definitions;
     };
     amd.search = function (parameter) { return new amd.Promise(function (resolve, reject) {
@@ -326,7 +351,8 @@ var amd;
             resolve(parameter.accumulator);
             return;
         }
-        amd.http.get(parameter.path + ".js").then(function (content) {
+        var path = parameter.path + ".js";
+        amd.http.get(path).then(function (content) {
             var extracted = null;
             try {
                 extracted = extract(parameter.id, content);
@@ -353,7 +379,7 @@ var amd;
                 .filter(function (id) { return !(parameter.accumulator.some(function (def) { return def.id === id; })); })
                 .map(function (id) { return amd.search({
                 id: id,
-                path: amd.path.resolve(parameter.path, id),
+                path: amd.path.relative(parameter.path, id),
                 accumulator: parameter.accumulator
             }); });
             amd.Promise
@@ -398,6 +424,7 @@ var amd;
                 { pattern: ["array", "function"], map: function (args) { return ({ ids: args[0], callback: args[1] }); } },
             ]);
             amd.ready().then(function () {
+                param.ids = param.ids.map(function (id) { return amd.path.resolve(id); });
                 var searches = param.ids.map(function (id) { return amd.search({
                     id: amd.path.basename(id),
                     path: id,

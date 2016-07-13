@@ -39,8 +39,7 @@ namespace amd {
   let loaded  = false
   let queue   = []
   window.addEventListener("load", () => {
-    loaded = true
-    while(queue.length > 0) queue.shift()({})
+    loaded = true; while(queue.length > 0) queue.shift()({})
   })
 
   /**
@@ -48,7 +47,7 @@ namespace amd {
    * @param {(d:any) => void} optional callback to be invoked once ready.
    * @returns {Promise<any>}
    */
-  export function ready (callback?: (d: any) => void) : amd.Promise<any>
+  export function ready (callback?: (d: any) => void) : amd.Promise<{}>
 
   /**
    * returns a promise that resolves once the window.onload event has fired.
@@ -61,7 +60,7 @@ namespace amd {
    * @param {any[]} arguments
    * @returns {Promise<any>}
    */
-  export function ready (...args: any[]): amd.Promise<any>  {
+  export function ready (...args: any[]): amd.Promise<{}>  {
     let param = amd.signature<{
       func  : (d:any) => void
     }> (args, [

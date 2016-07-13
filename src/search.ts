@@ -56,8 +56,8 @@ namespace amd {
    * @returns {Definition[]} the definitions.
    */
   const extract = (id: string, code: string) : Definition[] => {
-    let definitions = []
-    let define:any  = (...args: any[]) => {
+    let definitions : Definition [] = []
+    let define      : any = (...args: any[]) => {
       definitions.push(amd.signature<Definition>(args, [
         { pattern: ["function"],                    map: args => ({ id: id,      dependencies: [],      factory: args[0] })},
         { pattern: ["string", "function"],          map: args => ({ id: args[0], dependencies: [],      factory: args[1] })},
@@ -67,9 +67,9 @@ namespace amd {
         { pattern: ["string", "object"],            map: args => ({ id: args[0], dependencies: [],      factory: () => args[1] })},
         { pattern: ["string", "array", "object"],   map: args => ({ id: args[0], dependencies: args[1], factory: () => args[2] })}
       ]))
-    }
-    define.amd = true
-    eval(`(function(define) { ${code}\n })`)(define)
+    }; define.amd = true
+    let extractor = new Function("define", `${code}`)
+    extractor(define)
     return definitions
   }
 
@@ -101,11 +101,17 @@ namespace amd {
       resolve(parameter.accumulator); return
     }
 
+    // resolve path:
+    // 
+    // here we attempt to resolve the path to
+    // the module to load. 
+    let path = parameter.path + ".js"
+
     // http:
     // 
     // here we make our http request out to load the
     // module. postfix the path with .js and go.
-    amd.http.get(parameter.path + ".js").then(content => {
+    amd.http.get(path).then(content => {
 
       // discover:
       //
@@ -176,7 +182,7 @@ namespace amd {
                                .filter(id => !(parameter.accumulator.some(def => def.id === id))) 
                                .map   (id => search({
                                   id          : id, 
-                                  path        : amd.path.resolve(parameter.path, id),
+                                  path        : amd.path.relative(parameter.path, id),
                                   accumulator : parameter.accumulator
                                }))
       
@@ -185,6 +191,7 @@ namespace amd {
          .all   (searches)
          .then  (()    => resolve(parameter.accumulator))
          .catch (error => reject(error))
+      
     }).catch(reject)
   })
 }

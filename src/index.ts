@@ -26,7 +26,7 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
-/// <reference path="spread.ts" />
-/// <reference path="ready.ts" />
-/// <reference path="include.ts" />
-/// <reference path="require.ts" /> 
+/// <reference path="./path.ts" />
+/// <reference path="./ready.ts" />
+/// <reference path="./include.ts" />
+/// <reference path="./require.ts" />
